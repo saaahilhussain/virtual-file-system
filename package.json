@@ -1,5 +1,10 @@
 {
-  "devDependencies": {
-    "prettier": "^3.7.4"
+  "name": "storage-app",
+  "version": "1.0.0",
+  "description": "Storage App with MongoDB",
+  "scripts": {
+    "client": "npm run dev --prefix client",
+    "server": "npm run dev --prefix server",
+    "install:all": "npm install --prefix client && npm install --prefix server"
   }
 }
