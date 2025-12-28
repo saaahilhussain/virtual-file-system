@@ -11,9 +11,8 @@ router.post("/register", async (req, res, next) => {
   const { name, email, password } = req.body;
   const db = req.db;
 
-  // const foundUser = usersData.find((user) => user.email === email);
-  const foundUser = undefined;
-  console.log(foundUser);
+  const foundUser = await db.collection("users").findOne({ email });
+
   if (foundUser) {
     return res.status(409).json({
       error: "User already exists",
@@ -21,54 +20,32 @@ router.post("/register", async (req, res, next) => {
         "A user with this email address already exists. Please try logging in or use a different email.",
     });
   }
- 
-  const dirCollection = db.collection("directories");
-  const usersCollection = db.collection("users");
-
-  const createdDirectory = await dirCollection.insertOne({
-    name: `root-${email}`,
-    parentDirId: null,
-    files: [],
-    directories: [],
-  });
-
-  const rootDirId = createdDirectory.insertedId;
-
-  const createdUser = await usersCollection.insertOne({
-    name,
-    email,
-    password,
-    rootDirId,
-  });
-
-  await dirCollection.updateOne(
-    { _id: rootDirId },
-    { $set: { userId: createdUser.insertedId } }
-  );
-
-  // const dirId = crypto.randomUUID();
-  // const userId = crypto.randomUUID();
-
-  // directoriesData.push({
-  //   id: dirId,
-  //   name: `root-${email}`,
-  //   userId,
-  //   parentDirId: null,
-  //   files: [],
-  //   directories: [],
-  // });
-
-  // usersData.push({
-  //   id: userId,
-  //   name,
-  //   email,
-  //   password,
-  //   rootDirId: dirId,
-  // });
 
   try {
-    // await writeFile("./directoriesDB.json", JSON.stringify(directoriesData));
-    // await writeFile("./usersDB.json", JSON.stringify(usersData));
+    const dirCollection = db.collection("directories");
+    const usersCollection = db.collection("users");
+
+    const createdDirectory = await dirCollection.insertOne({
+      name: `root-${email}`,
+      parentDirId: null,
+      files: [],
+      directories: [],
+    });
+
+    const rootDirId = createdDirectory.insertedId;
+
+    const createdUser = await usersCollection.insertOne({
+      name,
+      email,
+      password,
+      rootDirId,
+    });
+
+    await dirCollection.updateOne(
+      { _id: rootDirId },
+      { $set: { userId: createdUser.insertedId } }
+    );
+
     return res.status(201).json({ message: "User Registered" });
   } catch (err) {
     next(err);
@@ -77,15 +54,19 @@ router.post("/register", async (req, res, next) => {
 
 router.post("/login", async (req, res, next) => {
   const { email, password } = req.body;
-  const user = usersData.find((user) => user.email === email);
-  if (!user || user.password !== password) {
+
+  const db = req.db;
+
+  const user = await db.collection("users").findOne({ email, password });
+
+  if (!user) {
     return res.status(404).json({ error: "Invalid Credentials" });
   }
-  res.cookie("uid", user.id, {
+  res.cookie("uid", user._id.toString(), {
     httpOnly: true,
     maxAge: 60 * 1000 * 60 * 24 * 7,
   });
-  res.json({ message: "logged in" });
+  return res.json({ message: "logged in" });
 });
 
 router.get("/", checkAuth, (req, res) => {
