@@ -3,13 +3,16 @@ import { writeFile } from "fs/promises";
 import directoriesData from "../directoriesDB.json" with { type: "json" };
 import usersData from "../usersDB.json" with { type: "json" };
 import checkAuth from "../middlewares/authMiddleware.js";
+import { Db } from "mongodb";
 
 const router = express.Router();
 
 router.post("/register", async (req, res, next) => {
   const { name, email, password } = req.body;
+  const db = req.db;
 
-  const foundUser = usersData.find((user) => user.email === email);
+  // const foundUser = usersData.find((user) => user.email === email);
+  const foundUser = undefined;
   console.log(foundUser);
   if (foundUser) {
     return res.status(409).json({
@@ -18,30 +21,54 @@ router.post("/register", async (req, res, next) => {
         "A user with this email address already exists. Please try logging in or use a different email.",
     });
   }
+ 
+  const dirCollection = db.collection("directories");
+  const usersCollection = db.collection("users");
 
-  const dirId = crypto.randomUUID();
-  const userId = crypto.randomUUID();
-
-  directoriesData.push({
-    id: dirId,
+  const createdDirectory = await dirCollection.insertOne({
     name: `root-${email}`,
-    userId,
     parentDirId: null,
     files: [],
     directories: [],
   });
 
-  usersData.push({
-    id: userId,
+  const rootDirId = createdDirectory.insertedId;
+
+  const createdUser = await usersCollection.insertOne({
     name,
     email,
     password,
-    rootDirId: dirId,
+    rootDirId,
   });
 
+  await dirCollection.updateOne(
+    { _id: rootDirId },
+    { $set: { userId: createdUser.insertedId } }
+  );
+
+  // const dirId = crypto.randomUUID();
+  // const userId = crypto.randomUUID();
+
+  // directoriesData.push({
+  //   id: dirId,
+  //   name: `root-${email}`,
+  //   userId,
+  //   parentDirId: null,
+  //   files: [],
+  //   directories: [],
+  // });
+
+  // usersData.push({
+  //   id: userId,
+  //   name,
+  //   email,
+  //   password,
+  //   rootDirId: dirId,
+  // });
+
   try {
-    await writeFile("./directoriesDB.json", JSON.stringify(directoriesData));
-    await writeFile("./usersDB.json", JSON.stringify(usersData));
+    // await writeFile("./directoriesDB.json", JSON.stringify(directoriesData));
+    // await writeFile("./usersDB.json", JSON.stringify(usersData));
     return res.status(201).json({ message: "User Registered" });
   } catch (err) {
     next(err);
