@@ -31,6 +31,7 @@ try {
   app.use("/file", checkAuth, fileRoutes);
   app.use("/user", userRoutes);
 
+  // global error handler
   app.use((err, req, res, next) => {
     console.log(err);
     return res
@@ -41,6 +42,8 @@ try {
   app.listen(4000, () => {
     console.log(`Server Started`);
   });
+
+  // database error handler
 } catch (err) {
   console.log("Count not connect to Database");
   console.log(err);

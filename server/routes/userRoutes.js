@@ -28,8 +28,6 @@ router.post("/register", async (req, res, next) => {
     const createdDirectory = await dirCollection.insertOne({
       name: `root-${email}`,
       parentDirId: null,
-      files: [],
-      directories: [],
     });
 
     const rootDirId = createdDirectory.insertedId;
