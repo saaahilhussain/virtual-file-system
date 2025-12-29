@@ -7,8 +7,8 @@ import { Db, ObjectId } from "mongodb";
 
 const router = express.Router();
 
-router.param("parentDirId", validateIdMiddleware);
-router.param("id", validateIdMiddleware);
+// router.param("parentDirId", validateIdMiddleware);
+// router.param("id", validateIdMiddleware);
 
 // Read
 router.get("/:id?", async (req, res) => {
@@ -34,13 +34,11 @@ router.get("/:id?", async (req, res) => {
     })
     .toArray();
 
-  return res
-    .status(200)
-    .json({
-      ...directoryData,
-      files,
-      directories: directories.map((dir) => ({ ...dir, id: dir._id })),
-    });
+  return res.status(200).json({
+    ...directoryData,
+    files,
+    directories: directories.map((dir) => ({ ...dir, id: dir._id })),
+  });
 });
 
 router.post("/:parentDirId?", async (req, res, next) => {
@@ -74,23 +72,35 @@ router.post("/:parentDirId?", async (req, res, next) => {
 
 router.patch("/:id", async (req, res, next) => {
   const user = req.user;
+  const db = req.db;
+  const dirCollection = db.collection("directories");
   const { id } = req.params;
   const { newDirName } = req.body;
 
-  const dirData = directoriesData.find((dir) => dir.id === id);
-  if (!dirData)
-    return res.status(404).json({ message: "Directory not found!" });
+  // const dirData = directoriesData.find((dir) => dir.id === id);
+  // if (!dirData)
+  //   return res.status(404).json({ message: "Directory not found!" });
 
-  // Check if the directory belongs to the user
-  if (dirData.userId !== user.id) {
-    return res
-      .status(403)
-      .json({ message: "You are not authorized to rename this directory!" });
-  }
+  // // Check if the directory belongs to the user
+  // if (dirData.userId !== user.id) {
+  //   return res
+  //     .status(403)
+  //     .json({ message: "You are not authorized to rename this directory!" });
+  // }
 
-  dirData.name = newDirName;
+  // dirData.name = newDirName;
   try {
-    await writeFile("./directoriesDB.json", JSON.stringify(directoriesData));
+    await dirCollection.updateOne(
+      {
+        _id: new ObjectId(id),
+        userId: user._id,
+      },
+      {
+        $set: {
+          name: newDirName,
+        },
+      }
+    );
     res.status(200).json({ message: "Directory Renamed!" });
   } catch (err) {
     next(err);
