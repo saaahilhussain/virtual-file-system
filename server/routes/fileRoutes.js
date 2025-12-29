@@ -9,8 +9,8 @@ import { ObjectId } from "mongodb";
 
 const router = express.Router();
 
-router.param("parentDirId", validateIdMiddleware);
-router.param("id", validateIdMiddleware);
+// router.param("parentDirId", validateIdMiddleware);
+// router.param("id", validateIdMiddleware);
 
 router.post("/:parentDirId?", async (req, res, next) => {
   const parentDirId = req.params.parentDirId || req.user.rootDirId;
@@ -35,6 +35,7 @@ router.post("/:parentDirId?", async (req, res, next) => {
     extension,
     name: filename,
     parentDirId: parentDirData._id,
+    userId: req.user._id,
   });
 
   const fileId = insertedFile.insertedId.toString();
@@ -56,26 +57,18 @@ router.post("/:parentDirId?", async (req, res, next) => {
   });
 });
 
-router.get("/:id", (req, res) => {
+router.get("/:id", async (req, res) => {
   const { id } = req.params;
-  const fileData = filesData.find((file) => file.id === id);
+  const db = req.db;
+  const filesCollection = db.collection("files");
+  const fileData = await filesCollection.findOne({
+    _id: new ObjectId(id),
+    userId: req.user._id,
+  });
 
   // Check if file exists
   if (!fileData) {
     return res.status(404).json({ error: "File not found!" });
-  }
-
-  // Check parent directory ownership
-  const parentDir = directoriesData.find(
-    (dir) => dir.id === fileData.parentDirId
-  );
-  if (!parentDir) {
-    return res.status(404).json({ error: "Parent directory not found!" });
-  }
-  if (parentDir.userId !== req.user.id) {
-    return res
-      .status(403)
-      .json({ error: "You don't have access to this file." });
   }
 
   // If "download" is requested, set the appropriate headers
