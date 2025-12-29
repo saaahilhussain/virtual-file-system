@@ -1,3 +1,7 @@
 client/node_modules/
 server/node_modules/
 node_modules
+server/storage
+client/.env
+server/.env
+.env

@@ -17,6 +17,7 @@ router.get("/:id?", async (req, res) => {
   const id = req.params.id || user.rootDirId;
 
   const dirCollection = db.collection("directories");
+  const filesCollection = db.collection("files");
 
   // Find the directory and verify ownership
   const directoryData = await dirCollection.findOne({ _id: new ObjectId(id) });
@@ -27,7 +28,9 @@ router.get("/:id?", async (req, res) => {
       .json({ error: "Directory not found or you do not have access to it!" });
   }
 
-  const files = [];
+  const files = await filesCollection
+    .find({ parentDirId: new ObjectId(id) })
+    .toArray();
   const directories = await dirCollection
     .find({
       parentDirId: new ObjectId(id),
@@ -36,7 +39,7 @@ router.get("/:id?", async (req, res) => {
 
   return res.status(200).json({
     ...directoryData,
-    files,
+    files: files.map((file) => ({ ...file, id: file._id })),
     directories: directories.map((dir) => ({ ...dir, id: dir._id })),
   });
 });
@@ -60,7 +63,7 @@ router.post("/:parentDirId?", async (req, res, next) => {
 
     await dirCollection.insertOne({
       name: dirname,
-      parentDirId,
+      parentDirId: new ObjectId(parentDirId),
       userId: user._id,
     });
 
@@ -77,18 +80,6 @@ router.patch("/:id", async (req, res, next) => {
   const { id } = req.params;
   const { newDirName } = req.body;
 
-  // const dirData = directoriesData.find((dir) => dir.id === id);
-  // if (!dirData)
-  //   return res.status(404).json({ message: "Directory not found!" });
-
-  // // Check if the directory belongs to the user
-  // if (dirData.userId !== user.id) {
-  //   return res
-  //     .status(403)
-  //     .json({ message: "You are not authorized to rename this directory!" });
-  // }
-
-  // dirData.name = newDirName;
   try {
     await dirCollection.updateOne(
       {
