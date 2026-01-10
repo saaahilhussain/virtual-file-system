@@ -1,7 +1,5 @@
 import express from "express";
 import { rm, writeFile } from "fs/promises";
-import directoriesData from "../directoriesDB.json" with { type: "json" };
-import filesData from "../filesDB.json" with { type: "json" };
 import validateIdMiddleware from "../middlewares/validateIdMiddleware.js";
 import { Db, ObjectId } from "mongodb";
 
@@ -99,60 +97,61 @@ router.patch("/:id", async (req, res, next) => {
 });
 
 router.delete("/:id", async (req, res, next) => {
-  const user = req.user;
   const { id } = req.params;
+  const user = req.user;
 
-  const dirIndex = directoriesData.findIndex(
-    (directory) => directory.id === id
+  const db = req.db;
+  const filesCollection = db.collection("files");
+  const dirCollection = db.collection("directories");
+
+  const directoryData = await dirCollection.findOne(
+    {
+      _id: new ObjectId(id),
+      userId: user._id,
+    },
+    { projection: { _id: 1 } }
   );
-  if (dirIndex === -1)
-    return res.status(404).json({ message: "Directory not found!" });
 
-  const directoryData = directoriesData[dirIndex];
+  if (!directoryData)
+    return res.status(404).json({ error: "Directory not found" });
 
-  // Check if the directory belongs to the user
-  if (directoryData.userId !== user.id) {
-    return res
-      .status(403)
-      .json({ message: "You are not authorized to delete this directory!" });
+  async function getDirContent(idx) {
+    let files = await filesCollection
+      .find(
+        { parentDirId: new ObjectId(idx) },
+        { projection: { extension: 1 } }
+      )
+      .toArray();
+    let directories = await dirCollection
+      .find({ parentDirId: new ObjectId(idx) }, { projection: { _id: 1 } })
+      .toArray();
+
+    for (const { _id, name } of directories) {
+      const { files: childFiles, directories: childDirectories } =
+        await getDirContent(_id);
+
+      files = [...files, ...childFiles];
+      directories = [...directories, ...childDirectories];
+    }
+
+    return { files, directories };
   }
 
-  try {
-    // Remove directory from the database
-    directoriesData.splice(dirIndex, 1);
+  const { files, directories } = await getDirContent(id);
+  console.log(files, "\n", directories);
 
-    // Delete all associated files
-    for await (const fileId of directoryData.files) {
-      const fileIndex = filesData.findIndex((file) => file.id === fileId);
-      const fileData = filesData[fileIndex];
-      await rm(`./storage/${fileId}${fileData.extension}`);
-      filesData.splice(fileIndex, 1);
-    }
-
-    // Delete all child directories
-    for await (const dirId of directoryData.directories) {
-      const childDirIndex = directoriesData.findIndex(({ id }) => id === dirId);
-      directoriesData.splice(childDirIndex, 1);
-    }
-
-    // Update parent directory
-    const parentDirData = directoriesData.find(
-      (dirData) => dirData.id === directoryData.parentDirId
-    );
-    if (parentDirData) {
-      parentDirData.directories = parentDirData.directories.filter(
-        (dirId) => dirId !== id
-      );
-    }
-
-    // Save updated data to the database
-    await writeFile("./filesDB.json", JSON.stringify(filesData));
-    await writeFile("./directoriesDB.json", JSON.stringify(directoriesData));
-
-    res.status(200).json({ message: "Directory Deleted!" });
-  } catch (err) {
-    next(err);
+  for (const { _id, extension } of files) {
+    await rm(`./storage/${_id.toString()}${extension}`);
   }
+
+  await filesCollection.deleteMany({
+    _id: { $in: files.map(({ _id }) => _id) },
+  });
+  await dirCollection.deleteMany({
+    _id: { $in: [...directories.map(({ _id }) => _id), new ObjectId(id)] },
+  });
+
+  return res.json({ message: "Files deleted successfully" });
 });
 
 export default router;
