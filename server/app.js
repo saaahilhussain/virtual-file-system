@@ -36,7 +36,7 @@ try {
     console.log(err);
     return res
       .status(err.status || 500)
-      .json({ message: "Something went wrong!!" });
+      .json({ error: "Something went wrong." });
   });
 
   app.listen(4000, () => {

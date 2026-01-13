@@ -46,6 +46,11 @@ router.post("/register", async (req, res, next) => {
 
     return res.status(201).json({ message: "User Registered" });
   } catch (err) {
+    if (err.code === 121) {
+      return res
+        .status(400)
+        .json({ error: "Invalid field, please enter valid details" });
+    }
     next(err);
   }
 });
