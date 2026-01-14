@@ -1,6 +1,7 @@
 import express from "express";
 import checkAuth from "../middlewares/authMiddleware.js";
 import { ObjectId } from "mongodb";
+import { client } from "../db.js";
 
 const router = express.Router();
 
@@ -15,27 +16,44 @@ router.post("/register", async (req, res, next) => {
         "A user with this email address already exists. Please try logging in or use a different email.",
     });
   }
+
+  const session = client.startSession();
+
   try {
     const rootDirId = new ObjectId();
     const userId = new ObjectId();
     const dirCollection = db.collection("directories");
 
-    await dirCollection.insertOne({
-      _id: rootDirId,
-      name: `root-${email}`,
-      parentDirId: null,
-      userId,
-    });
+    await session.withTransaction(async () => {
+      await dirCollection.insertOne(
+        {
+          _id: rootDirId,
+          name: `root-${email}`,
+          parentDirId: null,
+          userId,
+        },
+        { session }
+      );
 
-    await db.collection("users").insertOne({
-      _id: userId,
-      name,
-      email,
-      password,
-      rootDirId,
-    });
+      await db.collection("users").insertOne(
+        {
+          _id: userId,
+          name,
+          email,
+          password,
+          rootDirId,
+        },
+        { session }
+      );
 
-    res.status(201).json({ message: "User Registered" });
+      res.clearCookie("uid");
+      res.cookie("uid", userId.toString(), {
+        httpOnly: true,
+        maxAge: 60 * 1000 * 60 * 24 * 7,
+      });
+
+      return res.status(201).json({ message: "User Registered" });
+    });
   } catch (err) {
     if (err.code === 121) {
       res
@@ -44,6 +62,8 @@ router.post("/register", async (req, res, next) => {
     } else {
       next(err);
     }
+  } finally {
+    await session.endSession();
   }
 });
 
