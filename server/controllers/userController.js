@@ -1,10 +1,10 @@
-import { ObjectId } from "mongodb";
-import { client } from "../db.js";
+import mongoose, { Types } from "mongoose";
+import User from "../models/userModel.js";
+import Directory from "../models/directoryModel.js";
 
 export const registerUser = async (req, res, next) => {
   const { name, email, password } = req.body;
-  const db = req.db;
-  const foundUser = await db.collection("users").findOne({ email });
+  const foundUser = await User.findOne({ email });
   if (foundUser) {
     return res.status(409).json({
       error: "User already exists",
@@ -13,53 +13,52 @@ export const registerUser = async (req, res, next) => {
     });
   }
 
-  const session = client.startSession();
+  const session = await mongoose.startSession();
 
   try {
-    const rootDirId = new ObjectId();
-    const userId = new ObjectId();
-    const dirCollection = db.collection("directories");
+    const rootDirId = new Types.ObjectId();
+    const userId = new Types.ObjectId();
 
-    await session.withTransaction(async () => {
-      await dirCollection.insertOne(
-        {
-          _id: rootDirId,
-          name: `root-${email}`,
-          parentDirId: null,
-          userId,
-        },
-        { session },
-      );
+    session.startTransaction();
+    await Directory.insertOne(
+      {
+        _id: rootDirId,
+        name: `root-${email}`,
+        parentDirId: null,
+        userId,
+      },
+      { session },
+    );
 
-      await db.collection("users").insertOne(
-        {
-          _id: userId,
-          name,
-          email,
-          password,
-          rootDirId,
-        },
-        { session },
-      );
+    await User.insertOne(
+      {
+        _id: userId,
+        name,
+        email,
+        password,
+        rootDirId,
+      },
+      { session },
+    );
 
-      res.clearCookie("uid");
-      res.cookie("uid", userId.toString(), {
-        httpOnly: true,
-        maxAge: 60 * 1000 * 60 * 24 * 7,
-      });
+    session.commitTransaction();
 
-      return res.status(201).json({ message: "User Registered" });
+    res.clearCookie("uid");
+    res.cookie("uid", userId.toString(), {
+      httpOnly: true,
+      maxAge: 60 * 1000 * 60 * 24 * 7,
     });
+
+    return res.status(201).json({ message: "User Registered" });
   } catch (err) {
     if (err.code === 121) {
+      session.abortTransaction();
       res
         .status(400)
         .json({ error: "Invalid input, please enter valid details" });
     } else {
       next(err);
     }
-  } finally {
-    await session.endSession();
   }
 };
 
@@ -87,4 +86,4 @@ export const getUser = (req, res) => {
 export const logoutUser = (req, res) => {
   res.clearCookie("uid");
   res.status(204).end();
-}
+};
