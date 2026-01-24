@@ -7,11 +7,16 @@ const fileSchema = new Schema(
       required: true,
     },
     extension: {
+      type: String,
+      required: true,
+    },
+    userId: {
       type: Schema.Types.ObjectId,
       required: true,
     },
     parentDirId: {
       type: Schema.Types.ObjectId,
+      required: true,
       ref: "Directory",
     },
   },
