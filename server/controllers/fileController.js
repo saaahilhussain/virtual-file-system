@@ -79,8 +79,6 @@ export const getFile = async (req, res) => {
 
 export const renameFile = async (req, res, next) => {
   const { id } = req.params;
-  const db = req.db;
-  const filesCollection = db.collection("files");
   const file = await File.findOne({
     _id: id,
     userId: req.user._id,

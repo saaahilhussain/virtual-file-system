@@ -65,7 +65,7 @@ export const registerUser = async (req, res, next) => {
 export const loginUser = async (req, res, next) => {
   const { email, password } = req.body;
   const db = req.db;
-  const user = await db.collection("users").findOne({ email, password });
+  const user = await User.findOne({ email, password });
   if (!user) {
     return res.status(404).json({ error: "Invalid Credentials" });
   }
@@ -73,7 +73,7 @@ export const loginUser = async (req, res, next) => {
     httpOnly: true,
     maxAge: 60 * 1000 * 60 * 24 * 7,
   });
-  res.json({ message: "logged in" });
+  return res.status(200).json({ message: "logged in" });
 };
 
 export const getUser = (req, res) => {
