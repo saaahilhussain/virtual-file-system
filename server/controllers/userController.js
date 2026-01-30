@@ -64,15 +64,24 @@ export const registerUser = async (req, res, next) => {
 
 export const loginUser = async (req, res, next) => {
   const { email, password } = req.body;
-  const db = req.db;
   const user = await User.findOne({ email, password });
   if (!user) {
     return res.status(404).json({ error: "Invalid Credentials" });
   }
-  res.cookie("uid", user._id.toString(), {
-    httpOnly: true,
-    maxAge: 60 * 1000 * 60 * 24 * 7,
-  });
+
+  const cookiePayload = {
+    id: user._id.toString(),
+    expiry: Math.round(Date.now() / 1000 + 10),
+  };
+
+  res.cookie(
+    "uid",
+    Buffer.from(JSON.stringify(cookiePayload)).toString("base64url"),
+    {
+      httpOnly: true,
+      maxAge: 60 * 1000 * 60 * 24 * 7,
+    },
+  );
   return res.status(200).json({ message: "logged in" });
 };
 
