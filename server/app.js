@@ -10,7 +10,7 @@ import { connectDB } from "./config/db.js";
 await connectDB();
 const app = express();
 
-app.use(cookieParser());
+app.use(cookieParser("random-bytes-123@#!"));
 app.use(express.json());
 app.use(
   cors({
