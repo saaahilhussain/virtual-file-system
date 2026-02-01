@@ -5,6 +5,11 @@ import Directory from "../models/directoryModel.js";
 
 export const registerUser = async (req, res, next) => {
   const { name, email, password } = req.body;
+  const hashedPassword = crypto
+    .createHash("sha256")
+    .update(password)
+    .digest("hex");
+
   const foundUser = await User.findOne({ email });
   if (foundUser) {
     return res.status(409).json({
@@ -36,7 +41,7 @@ export const registerUser = async (req, res, next) => {
         _id: userId,
         name,
         email,
-        password,
+        password: hashedPassword,
         rootDirId,
       },
       { session },
@@ -45,10 +50,20 @@ export const registerUser = async (req, res, next) => {
     session.commitTransaction();
 
     res.clearCookie("token");
-    res.cookie("token", userId.toString(), {
-      httpOnly: true,
-      maxAge: 60 * 1000 * 60 * 24 * 7,
-    });
+    res.cookie(
+      "token",
+      Buffer.from(
+        JSON.stringify({
+          id: userId.toString(),
+          expiry: Math.round(Date.now() / 1000 + 60),
+        }),
+      ).toString("base64url"),
+      {
+        httpOnly: true,
+        signed: true,
+        maxAge: 60 * 1000 * 60 * 24 * 7,
+      },
+    );
 
     return res.status(201).json({ message: "User Registered" });
   } catch (err) {
@@ -65,8 +80,17 @@ export const registerUser = async (req, res, next) => {
 
 export const loginUser = async (req, res, next) => {
   const { email, password } = req.body;
-  const user = await User.findOne({ email, password });
+  const user = await User.findOne({ email });
   if (!user) {
+    return res.status(404).json({ error: "Invalid Credentials" });
+  }
+
+  const enteredPasswordHash = crypto
+    .createHash("sha256")
+    .update(password)
+    .digest("hex");
+
+  if (user.password !== enteredPasswordHash) {
     return res.status(404).json({ error: "Invalid Credentials" });
   }
 
