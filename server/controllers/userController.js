@@ -55,7 +55,7 @@ export const registerUser = async (req, res, next) => {
       Buffer.from(
         JSON.stringify({
           id: userId.toString(),
-          expiry: Math.round(Date.now() / 1000 + 60),
+          expiry: Math.round((Date.now() / 1000) * 60 * 60 * 24 * 7),
         }),
       ).toString("base64url"),
       {
