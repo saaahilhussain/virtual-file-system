@@ -6,7 +6,7 @@ const client = mongoose.connection.getClient();
 
 try {
   const db = mongoose.connection.db;
-  const command = "collMod";
+  const command = "create";
 
   await db.command({
     [command]: "users",

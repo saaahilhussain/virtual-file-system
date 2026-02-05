@@ -7,7 +7,6 @@ export default async function checkAuth(req, res, next) {
   }
 
   const { id, expiry } = JSON.parse(Buffer.from(token, "base64url").toString());
-  console.log(id, expiry);
 
   const currentTime = Math.round(Date.now() / 1000);
   if (currentTime > expiry) {
