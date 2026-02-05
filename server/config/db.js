@@ -12,6 +12,6 @@ export async function connectDB() {
 }
 
 process.on("SIGINT", async () => {
-  await client.close();
+  await mongoose.connection.close(); // Fixed: use mongoose.connection instead of undefined client
   process.exit(0);
 });
