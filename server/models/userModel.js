@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import bcrypt from "bcrypt";
 
 const userSchema = new Schema({
   name: {
@@ -26,6 +27,15 @@ const userSchema = new Schema({
     ref: "Directory",
   },
 });
+
+userSchema.pre("save", async function () {
+  if (!this.isModified("password")) return; // suppose user only changed his name, then early return old password hash
+  this.password = await bcrypt.hash(this.password, 12);
+});
+
+userSchema.methods.comparePassword = async function (candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
 
 const User = model("User", userSchema);
 export default User;

@@ -1,12 +1,10 @@
 import mongoose, { Types } from "mongoose";
-import bcrypt from "bcrypt";
 import User from "../models/userModel.js";
 import Directory from "../models/directoryModel.js";
 import Session from "../models/sessionModel.js";
 
 export const registerUser = async (req, res, next) => {
   const { name, email, password } = req.body;
-  const hashedPassword = await bcrypt.hash(password, 12);
 
   const foundUser = await User.findOne({ email });
   if (foundUser) {
@@ -24,24 +22,28 @@ export const registerUser = async (req, res, next) => {
     const userId = new Types.ObjectId();
 
     session.startTransaction();
-    await Directory.insertOne(
-      {
-        _id: rootDirId,
-        name: `root-${email}`,
-        parentDirId: null,
-        userId,
-      },
+    await Directory.create(
+      [
+        {
+          _id: rootDirId,
+          name: `root-${email}`,
+          parentDirId: null,
+          userId,
+        },
+      ],
       { session },
     );
 
-    await User.insertOne(
-      {
-        _id: userId,
-        name,
-        email,
-        password: hashedPassword,
-        rootDirId,
-      },
+    await User.create(
+      [
+        {
+          _id: userId,
+          name,
+          email,
+          password,
+          rootDirId,
+        },
+      ],
       { session },
     );
 
@@ -83,15 +85,16 @@ export const loginUser = async (req, res, next) => {
     return res.status(404).json({ error: "Invalid Credentials" });
   }
 
-  const isPasswordValid = await bcrypt.compare(password, user.password);
+  const isPasswordValid = await user.comparePassword(password);
   if (!isPasswordValid) {
     return res.status(404).json({ error: "Invalid Credentials" });
   }
 
-  // const cookiePayload = JSON.stringify({
-  //   id: user._id.toString(),
-  //   expiry: Math.round(Date.now() / 1000 + 60),
-  // });
+  const allSessions = await Session.find({ userId: user.id });
+
+  if (allSessions.length >= 2) {
+    await allSessions[0].deleteOne();
+  }
 
   const session = await Session.create({ userId: user._id });
 
@@ -110,7 +113,9 @@ export const getUser = (req, res) => {
   });
 };
 
-export const logoutUser = (req, res) => {
+export const logoutUser = async (req, res) => {
+  const { sid } = req.signedCookies;
+  await Session.findByIdAndDelete(sid);
   res.clearCookie("sid");
   res.status(204).end();
 };
