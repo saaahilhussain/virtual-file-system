@@ -92,7 +92,7 @@ export const loginUser = async (req, res, next) => {
 
   const allSessions = await Session.find({ userId: user.id });
 
-  if (allSessions.length >= 2) {
+  if (allSessions.length >= 3) {
     await allSessions[0].deleteOne();
   }
 
@@ -116,6 +116,16 @@ export const getUser = (req, res) => {
 export const logoutUser = async (req, res) => {
   const { sid } = req.signedCookies;
   await Session.findByIdAndDelete(sid);
+  res.clearCookie("sid");
+  res.status(204).end();
+};
+
+export const logoutAll = async (req, res) => {
+  const { sid } = req.signedCookies;
+  const session = await Session.findById(sid);
+
+  await Session.deleteMany({ userId: session.userId });
+
   res.clearCookie("sid");
   res.status(204).end();
 };

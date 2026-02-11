@@ -4,6 +4,7 @@ import checkAuth from "../middlewares/authMiddleware.js";
 import {
   getUser,
   loginUser,
+  logoutAll,
   logoutUser,
   registerUser,
 } from "../controllers/userController.js";
@@ -17,5 +18,7 @@ router.post("/login", loginUser);
 router.get("/", checkAuth, getUser);
 
 router.post("/logout", logoutUser);
+
+router.post("/logout-all", logoutAll);
 
 export default router;
