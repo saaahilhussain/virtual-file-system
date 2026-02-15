@@ -6,9 +6,9 @@ const Register = () => {
   const BASE_URL = "http://localhost:4000";
 
   const [formData, setFormData] = useState({
-    name: "Sahil Hussain",
-    email: "sahil@test.com",
-    password: "sahil123",
+    name: "Father of Computers",
+    email: "alan@turing.com",
+    password: "turing123",
   });
 
   const [serverError, setServerError] = useState("");
@@ -68,8 +68,6 @@ const Register = () => {
         setServerError("");
         setOtpError("");
       } else {
-        // setOtpError(data.error || "Failed to send OTP.");
-        // If error message mentions email, show under email field
         if (data.error && data.error.toLowerCase().includes("email")) {
           setServerError(data.error);
           setOtpError("");
