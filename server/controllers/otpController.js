@@ -1,9 +1,9 @@
-import { sendOtp } from "../services/otpService.js";
+import { sendOtpService } from "../services/otpService.js";
 
-export const sendOtpController = async (req, res) => {
+export const sendOtp = async (req, res) => {
   const { email } = req.body;
 
-  const result = await sendOtp(email);
+  const result = await sendOtpService(email);
 
   return res.status(200).json(result);
 };
