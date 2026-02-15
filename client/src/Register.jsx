@@ -65,9 +65,18 @@ const Register = () => {
       if (res.ok) {
         setOtpSent(true);
         setCountdown(60); // allow resend after 60s
+        setServerError("");
         setOtpError("");
       } else {
-        setOtpError(data.error || "Failed to send OTP.");
+        // setOtpError(data.error || "Failed to send OTP.");
+        // If error message mentions email, show under email field
+        if (data.error && data.error.toLowerCase().includes("email")) {
+          setServerError(data.error);
+          setOtpError("");
+        } else {
+          setOtpError(data.error || "Failed to send OTP.");
+          setServerError("");
+        }
       }
     } catch (err) {
       console.error(err);
@@ -87,7 +96,7 @@ const Register = () => {
 
     try {
       setIsVerifying(true);
-      const res = await fetch(`${BASE_URL}/verify-otp`, {
+      const res = await fetch(`${BASE_URL}/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp }),
@@ -190,7 +199,6 @@ const Register = () => {
             </button>
           </div>
           {serverError && <span className="error-msg">{serverError}</span>}
-          {otpError && <span className="error-msg">{otpError}</span>}
         </div>
 
         {/* OTP Input + Verify */}
@@ -223,6 +231,7 @@ const Register = () => {
                     ? "Verified"
                     : "Verify OTP"}
               </button>
+              {otpError && <span className="error-msg">{otpError}</span>}
             </div>
           </div>
         )}
