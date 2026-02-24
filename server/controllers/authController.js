@@ -1,5 +1,6 @@
 import Otp from "../models/otpModel.js";
 import User from "../models/userModel.js";
+import { verifyIdToken } from "../services/googleAuthService.js";
 import { sendOtpService } from "../services/otpService.js";
 
 export const sendOtp = async (req, res, next) => {
@@ -30,4 +31,11 @@ export const verifyOtp = async (req, res) => {
 
   await Otp.deleteOne();
   return res.status(200).json({ message: "OTP verified successfully" });
+};
+
+export const loginWithGoogle = async (req, res, next) => {
+  const { idToken } = req.body;
+
+  const userData = await verifyIdToken(idToken);
+  return res.json(userData);
 };

@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { GoogleLogin } from "@react-oauth/google";
+import { loginWithGoogle } from "./apis/loginWithGoogle";
 import "./Auth.css";
-
+``;
 const Login = () => {
   const BASE_URL = "http://localhost:4000";
 
@@ -103,11 +105,28 @@ const Login = () => {
           Login
         </button>
       </form>
-
       {/* Link to the register page */}
       <p className="link-text">
         Don't have an account? <Link to="/register">Register</Link>
       </p>
+      <div className="or">
+        <span>Or</span>
+      </div>
+      <div className="google-btn">
+        <GoogleLogin
+          onSuccess={ (credentialResponse) => {
+             loginWithGoogle(credentialResponse.credential);
+          }}
+          onError={() => {
+            console.log("Login Failed");
+          }}
+          theme="filled_blue"
+          width={300}
+          shape="pill"
+          // useOneTap
+        />
+      </div>
+      ;
     </div>
   );
 };

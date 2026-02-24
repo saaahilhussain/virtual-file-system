@@ -126,3 +126,32 @@
   background-color: #92a6bc;
   cursor: not-allowed;
 }
+
+.or {
+  position: relative;
+  text-align: center;
+}
+
+.or span {
+  position: relative;
+  background-color: white;
+  padding: 0 4px;
+}
+
+.or::before {
+  content: "";
+  background-color: gainsboro;
+  width: 100%;
+  height: 2px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.google-btn {
+  display: flex;
+  margin-top: 1rem;
+  justify-content: center;
+}

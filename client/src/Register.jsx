@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { GoogleLogin } from "@react-oauth/google";
+import { loginWithGoogle } from "./apis/loginWithGoogle";
 import "./Auth.css";
 
 const Register = () => {
@@ -263,6 +265,24 @@ const Register = () => {
       <p className="link-text">
         Already have an account? <Link to="/login">Login</Link>
       </p>
+
+      <div className="or">
+        <span>Or</span>
+      </div>
+      <div className="google-btn">
+        <GoogleLogin
+          onSuccess={(credentialResponse) => {
+            loginWithGoogle(credentialResponse.credential);
+          }}
+          onError={() => {
+            console.log("Login Failed");
+          }}
+          theme="filled_blue"
+          width={300}
+          shape="pill"
+          // useOneTap
+        />
+      </div>
     </div>
   );
 };
