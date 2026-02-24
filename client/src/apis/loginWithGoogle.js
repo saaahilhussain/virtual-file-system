@@ -7,8 +7,9 @@ export async function loginWithGoogle(idToken) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ idToken }),
+    credentials: "include",
   });
 
-  const data = res.json();
-  console.log(data);
+  const data = await res.json();
+  return data;
 }

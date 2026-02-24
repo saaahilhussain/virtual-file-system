@@ -6,14 +6,14 @@ const client = mongoose.connection.getClient();
 
 try {
   const db = mongoose.connection.db;
-  const command = "create";
+  const command = "collMod";
 
   await db.command({
     [command]: "users",
     validator: {
       $jsonSchema: {
         bsonType: "object",
-        required: ["_id", "name", "email", "password", "rootDirId"],
+        required: ["_id", "name", "email", "rootDirId"],
         properties: {
           _id: {
             bsonType: "objectId",
@@ -30,6 +30,10 @@ try {
             pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+.[a-zA-Z]{2,}$",
           },
           password: {
+            bsonType: "string",
+            minLength: 4,
+          },
+          picture: {
             bsonType: "string",
             minLength: 4,
           },

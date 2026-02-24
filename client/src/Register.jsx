@@ -271,16 +271,21 @@ const Register = () => {
       </div>
       <div className="google-btn">
         <GoogleLogin
-          onSuccess={(credentialResponse) => {
-            loginWithGoogle(credentialResponse.credential);
+          onSuccess={async (credentialResponse) => {
+            const data = await loginWithGoogle(credentialResponse.credential);
+            if (data.error) {
+              console.log(data);
+              return;
+            }
+            navigate("/");
           }}
           onError={() => {
             console.log("Login Failed");
           }}
+          useOneTap
           theme="filled_blue"
           width={300}
           shape="pill"
-          // useOneTap
         />
       </div>
     </div>

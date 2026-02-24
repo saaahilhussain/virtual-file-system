@@ -107,9 +107,10 @@ export const loginUser = async (req, res, next) => {
 };
 
 export const getUser = (req, res) => {
-  res.status(200).json({
+  return res.status(200).json({
     name: req.user.name,
     email: req.user.email,
+    picture: req.user.picture,
   });
 };
 

@@ -5,7 +5,6 @@ import File from "../models/fileModel.js";
 
 export const getDirectory = async (req, res) => {
   const user = req.user;
-  const db = req.db;
   const id = req.params.id || user.rootDirId.toString();
 
   // Find the directory and verify ownership

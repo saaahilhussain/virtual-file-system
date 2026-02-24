@@ -18,8 +18,12 @@ const userSchema = new Schema({
   },
   password: {
     type: String,
-    minLength: 3,
-    required: true,
+    minLength: 6,
+  },
+  picture: {
+    type: String,
+    default:
+      "https://static.vecteezy.com/system/resources/thumbnails/002/318/271/small/user-profile-icon-free-vector.jpg",
   },
   rootDirId: {
     type: Schema.Types.ObjectId,
