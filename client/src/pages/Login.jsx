@@ -202,7 +202,57 @@ const Login = () => {
           <button
             onClick={() => {
               const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
-              window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=user:email`;
+              const redirectUri =
+                window.location.origin + "/auth/github/callback";
+              const state = Math.random().toString(36).substring(7); // Basic CSRF protection
+
+              const githubUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email&state=${state}`;
+
+              // Open popup
+              const width = 500;
+              const height = 600;
+              const left = window.screen.width / 2 - width / 2;
+              const top = window.screen.height / 2 - height / 2;
+
+              const popup = window.open(
+                githubUrl,
+                "GitHub Login",
+                `width=${width},height=${height},top=${top},left=${left}`,
+              );
+
+              // Listen for messages from the popup
+              const handleMessage = async (event) => {
+                // Ensure the message is coming from our own domain
+                if (event.origin !== window.location.origin) return;
+
+                if (event.data.type === "GITHUB_AUTH_CODE") {
+                  // Message received, stop listening
+                  window.removeEventListener("message", handleMessage);
+
+                  const { code } = event.data;
+
+                  try {
+                    // Send code to backend
+                    const data = await fetch(`${BASE_URL}/auth/github`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ code }),
+                      credentials: "include",
+                    }).then((res) => res.json());
+
+                    if (data.error) {
+                      setServerError(data.error);
+                    } else {
+                      navigate("/");
+                    }
+                  } catch (error) {
+                    console.error("GitHub Login Error:", error);
+                    setServerError("Something went wrong with GitHub login.");
+                  }
+                }
+              };
+
+              window.addEventListener("message", handleMessage);
             }}
             style={{
               width: "300px",

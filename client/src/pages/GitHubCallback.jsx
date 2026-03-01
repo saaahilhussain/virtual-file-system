@@ -8,7 +8,7 @@ const GitHubCallback = () => {
   const location = useLocation();
 
   useEffect(() => {
-    const handleGitHubCallback = async () => {
+    const handleGitHubCallback = () => {
       // 1. Get the 'code' from the URL query params
       const searchParams = new URLSearchParams(location.search);
       const code = searchParams.get("code");
@@ -18,19 +18,19 @@ const GitHubCallback = () => {
         return;
       }
 
-      try {
-        // 2. Send the code to our backend to complete login
-        const data = await loginWithGithub(code);
+      // 2. Send the code back to the parent window
+      if (window.opener) {
+        window.opener.postMessage(
+          { type: "GITHUB_AUTH_CODE", code },
+          window.location.origin,
+        );
 
-        if (data.error) {
-          setError(data.error);
-        } else {
-          // 3. Success! Navigate to home (dashboard)
-          navigate("/");
-        }
-      } catch (err) {
-        console.error("GitHub Login Error:", err);
-        setError("Something went wrong during GitHub login.");
+        // 3. Close the popup
+        window.close();
+      } else {
+        setError(
+          "This page is meant to be opened as a popup for authentication.",
+        );
       }
     };
 

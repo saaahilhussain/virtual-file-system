@@ -27,7 +27,7 @@ export const verifyGithubCode = async (code) => {
       tokenData.error_description || "Failed to get GitHub access token",
     );
   }
-
+ 
   const accessToken = tokenData.access_token;
 
   // 2. Fetch user profile
