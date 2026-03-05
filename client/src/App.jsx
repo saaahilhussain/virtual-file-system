@@ -3,6 +3,7 @@ import DirectoryView from "./pages/DirectoryView";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
 import TrashView from "./pages/TrashView";
+import UsersView from "./pages/UsersView";
 import GitHubCallback from "./pages/GitHubCallback";
 
 const router = createBrowserRouter([
@@ -25,6 +26,10 @@ const router = createBrowserRouter([
   {
     path: "/trash",
     element: <TrashView />,
+  },
+  {
+    path: "/users",
+    element: <UsersView />,
   },
   {
     path: "/auth/github/callback",

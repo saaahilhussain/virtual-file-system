@@ -1,7 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-function TopBar({ onUploadFilesClick, fileInputRef, handleFileSelect }) {
+function TopBar({
+  onUploadFilesClick,
+  fileInputRef,
+  handleFileSelect,
+  searchPlaceholder = "Search files...",
+  hideUpload = false,
+}) {
   const BASE_URL = "http://localhost:4000";
 
   // Dark mode state
@@ -135,14 +141,16 @@ function TopBar({ onUploadFilesClick, fileInputRef, handleFileSelect }) {
         <input
           type="text"
           className="search-input"
-          placeholder="Search files..."
+          placeholder={searchPlaceholder}
         />
       </div>
 
       <div className="action-area">
-        <button className="upload-btn" onClick={onUploadFilesClick}>
-          Upload File
-        </button>
+        {!hideUpload && (
+          <button className="upload-btn" onClick={onUploadFilesClick}>
+            Upload File
+          </button>
+        )}
 
         {/* Theme toggle (same pattern as Login/Register) */}
         <button
