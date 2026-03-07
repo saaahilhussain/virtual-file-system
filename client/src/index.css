@@ -1563,6 +1563,38 @@ body.dark-mode .admin-badge {
   justify-content: center;
 }
 
+.btn-edit {
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  padding: 6px 16px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    transform 0.1s,
+    background 0.15s;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-edit:hover {
+  background: #eee;
+  transform: scale(1.02);
+}
+
+body.dark-mode .btn-edit {
+  background: transparent;
+  color: white;
+}
+
+body.dark-mode .btn-edit:hover {
+  background: #252525;
+}
+
 .btn-logout {
   background-color: var(--accent-black);
   color: white;

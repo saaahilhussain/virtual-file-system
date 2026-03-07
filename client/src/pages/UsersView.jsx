@@ -8,28 +8,84 @@ function UsersView() {
       id: 1,
       name: "Sarah Johnson",
       email: "sarah.j@fileshelter.app",
-      isAdmin: true,
+      role: "admin",
     },
     {
       id: 2,
       name: "Alex Miller",
       email: "a.miller@partner.com",
-      isAdmin: false,
+      role: "user",
     },
-    { id: 3, name: "David Kim", email: "david.k@designco.net", isAdmin: false },
+    { id: 3, name: "David Kim", email: "david.k@designco.net", role: "user" },
     {
       id: 4,
       name: "Laura Rivera",
       email: "l.rivera@internal.io",
-      isAdmin: false,
+      role: "user",
     },
     {
       id: 5,
       name: "Michael Wong",
       email: "m.wong@fileshelter.app",
-      isAdmin: false,
+      role: "user",
     },
   ]);
+
+  const [contextMenuUser, setContextMenuUser] = useState(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+  const [editingDetailsUser, setEditingDetailsUser] = useState(null);
+  const [editingRoleUser, setEditingRoleUser] = useState(null);
+  const [updateCredentials, setUpdateCredentials] = useState(false);
+
+  const [editDetailsForm, setEditDetailsForm] = useState({
+    name: "",
+    email: "",
+  });
+  const [editRoleForm, setEditRoleForm] = useState({ role: "user" });
+
+  const handleEditClick = (e, user) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    // position the menu just below the button
+    setMenuPos({ top: rect.bottom + 8, left: rect.left - 40 });
+    setContextMenuUser(user);
+  };
+
+  const openDetailsModal = () => {
+    setEditingDetailsUser(contextMenuUser);
+    setEditDetailsForm({
+      name: contextMenuUser.name,
+      email: contextMenuUser.email,
+    });
+    setUpdateCredentials(false);
+    setContextMenuUser(null);
+  };
+
+  const openRoleModal = () => {
+    setEditingRoleUser(contextMenuUser);
+    setEditRoleForm({ role: contextMenuUser.role || "user" });
+    setContextMenuUser(null);
+  };
+
+  const handleEditDetailsSave = (e) => {
+    e.preventDefault();
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === editingDetailsUser.id ? { ...u, ...editDetailsForm } : u,
+      ),
+    );
+    setEditingDetailsUser(null);
+  };
+
+  const handleEditRoleSave = (e) => {
+    e.preventDefault();
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === editingRoleUser.id ? { ...u, ...editRoleForm } : u,
+      ),
+    );
+    setEditingRoleUser(null);
+  };
 
   // Context Menu State for users, although here we just use inline buttons
   // but keeping it simple as per mockup
@@ -107,8 +163,30 @@ function UsersView() {
                         </svg>
                       </div>
                       <span className="user-name-text">{user.name}</span>
-                      {user.isAdmin && (
+                      {user.role === "admin" && (
                         <span className="admin-badge">Admin</span>
+                      )}
+                      {user.role === "manager" && (
+                        <span
+                          className="admin-badge"
+                          style={{
+                            background: "var(--accent-green-soft)",
+                            color: "var(--text-primary)",
+                          }}
+                        >
+                          Manager
+                        </span>
+                      )}
+                      {user.role === "user" && (
+                        <span
+                          className="admin-badge"
+                          style={{
+                            background: "var(--bg-canvas)",
+                            color: "var(--text-secondary)",
+                          }}
+                        >
+                          User
+                        </span>
                       )}
                     </div>
                   </td>
@@ -120,6 +198,12 @@ function UsersView() {
                   </td>
                   <td>
                     <div className="user-actions">
+                      <button
+                        className="btn-edit"
+                        onClick={(e) => handleEditClick(e, user)}
+                      >
+                        Edit
+                      </button>
                       <button
                         className="btn-logout"
                         onClick={() => handleLogout(user.id)}
@@ -143,6 +227,243 @@ function UsersView() {
           )}
         </div>
       </main>
+
+      {/* Edit Options Context Menu */}
+      {contextMenuUser && (
+        <>
+          <div
+            style={{ position: "fixed", inset: 0, zIndex: 9998 }}
+            onClick={() => setContextMenuUser(null)}
+          />
+          <div
+            className="context-menu open"
+            style={{
+              position: "fixed",
+              top: `${menuPos.top}px`,
+              left: `${menuPos.left}px`,
+              zIndex: 9999,
+              minWidth: "160px",
+            }}
+          >
+            <button
+              className="context-menu-item"
+              style={{
+                width: "100%",
+                background: "transparent",
+                border: "none",
+                textAlign: "left",
+                fontFamily: "inherit",
+              }}
+              onClick={openDetailsModal}
+            >
+              Update user details
+            </button>
+            <div className="context-menu-divider"></div>
+            <button
+              className="context-menu-item"
+              style={{
+                width: "100%",
+                background: "transparent",
+                border: "none",
+                textAlign: "left",
+                fontFamily: "inherit",
+              }}
+              onClick={openRoleModal}
+            >
+              Update role
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Update User Details Modal */}
+      {editingDetailsUser && (
+        <div
+          className="modal-overlay"
+          onMouseDown={() => setEditingDetailsUser(null)}
+        >
+          <div
+            className="modal-content"
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{ width: "320px", padding: "24px", maxWidth: "90%" }}
+          >
+            <h4
+              className="modal-title"
+              style={{ margin: "0 0 16px 0", fontSize: "16px" }}
+            >
+              Update User Details
+            </h4>
+            <form
+              onSubmit={handleEditDetailsSave}
+              className="modal-form"
+              style={{ gap: "12px" }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  marginBottom: "4px",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  id="updateCredentials"
+                  checked={updateCredentials}
+                  onChange={(e) => setUpdateCredentials(e.target.checked)}
+                  style={{ accentColor: "var(--accent-black)" }}
+                />
+                <label
+                  htmlFor="updateCredentials"
+                  className="auth-input-label"
+                  style={{ marginBottom: 0, cursor: "pointer" }}
+                >
+                  Update credentials
+                </label>
+              </div>
+              <div>
+                <label
+                  className="auth-input-label"
+                  style={{ marginBottom: "6px" }}
+                >
+                  Name
+                </label>
+                <input
+                  type="text"
+                  className="modal-input"
+                  style={{
+                    padding: "8px 12px",
+                    fontSize: "13px",
+                    opacity: updateCredentials ? 1 : 0.6,
+                  }}
+                  value={editDetailsForm.name}
+                  onChange={(e) =>
+                    setEditDetailsForm({
+                      ...editDetailsForm,
+                      name: e.target.value,
+                    })
+                  }
+                  required
+                  disabled={!updateCredentials}
+                />
+              </div>
+              <div>
+                <label
+                  className="auth-input-label"
+                  style={{ marginBottom: "6px" }}
+                >
+                  Email
+                </label>
+                <input
+                  type="email"
+                  className="modal-input"
+                  style={{
+                    padding: "8px 12px",
+                    fontSize: "13px",
+                    opacity: updateCredentials ? 1 : 0.6,
+                  }}
+                  value={editDetailsForm.email}
+                  onChange={(e) =>
+                    setEditDetailsForm({
+                      ...editDetailsForm,
+                      email: e.target.value,
+                    })
+                  }
+                  required
+                  disabled={!updateCredentials}
+                />
+              </div>
+
+              <div className="modal-actions" style={{ marginTop: "8px" }}>
+                <button
+                  type="button"
+                  className="modal-btn modal-btn-secondary"
+                  style={{ padding: "6px 14px", fontSize: "12px" }}
+                  onClick={() => setEditingDetailsUser(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="modal-btn modal-btn-primary"
+                  style={{ padding: "6px 14px", fontSize: "12px" }}
+                >
+                  Save
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Update Role Modal */}
+      {editingRoleUser && (
+        <div
+          className="modal-overlay"
+          onMouseDown={() => setEditingRoleUser(null)}
+        >
+          <div
+            className="modal-content"
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{ width: "320px", padding: "24px", maxWidth: "90%" }}
+          >
+            <h4
+              className="modal-title"
+              style={{ margin: "0 0 16px 0", fontSize: "16px" }}
+            >
+              Update User Role
+            </h4>
+            <form
+              onSubmit={handleEditRoleSave}
+              className="modal-form"
+              style={{ gap: "12px" }}
+            >
+              <div>
+                <label
+                  className="auth-input-label"
+                  style={{ marginBottom: "6px" }}
+                >
+                  Role
+                </label>
+                <select
+                  className="modal-input"
+                  style={{
+                    padding: "8px 12px",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                    appearance: "auto",
+                  }}
+                  value={editRoleForm.role}
+                  onChange={(e) =>
+                    setEditRoleForm({ ...editRoleForm, role: e.target.value })
+                  }
+                >
+                  <option value="user">User</option>
+                  <option value="manager">Manager</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div className="modal-actions" style={{ marginTop: "8px" }}>
+                <button
+                  type="button"
+                  className="modal-btn modal-btn-secondary"
+                  style={{ padding: "6px 14px", fontSize: "12px" }}
+                  onClick={() => setEditingRoleUser(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="modal-btn modal-btn-primary"
+                  style={{ padding: "6px 14px", fontSize: "12px" }}
+                >
+                  Save
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
