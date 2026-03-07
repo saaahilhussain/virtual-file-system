@@ -13,7 +13,7 @@ try {
     validator: {
       $jsonSchema: {
         bsonType: "object",
-        required: ["_id", "name", "email", "rootDirId"],
+        required: ["_id", "name", "email", "rootDirId", "role", "isDeleted"],
         properties: {
           _id: {
             bsonType: "objectId",
@@ -39,6 +39,12 @@ try {
           },
           rootDirId: {
             bsonType: "objectId",
+          },
+          role: {
+            bsonType: "string",
+          },
+          isDeleted: {
+            bsonType: "bool",
           },
           __v: {
             bsonType: "int",

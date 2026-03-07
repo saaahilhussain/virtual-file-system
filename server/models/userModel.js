@@ -30,6 +30,15 @@ const userSchema = new Schema({
     required: true,
     ref: "Directory",
   },
+  role: {
+    type: String,
+    enum: ["user", "manager", "admin", "owner"],
+    default: "user",
+  },
+  isDeleted: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 userSchema.pre("save", async function () {

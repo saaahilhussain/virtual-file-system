@@ -7,6 +7,7 @@ import fileRoutes from "./routes/fileRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import trashRoutes from "./routes/trashRoutes.js";
+import usersRoutes from "./routes/usersRoutes.js";
 import checkAuth from "./middlewares/authMiddleware.js";
 import { connectDB } from "./config/db.js";
 
@@ -26,7 +27,10 @@ app.use("/directory", checkAuth, directoryRoutes);
 app.use("/file", checkAuth, fileRoutes);
 app.use("/user", userRoutes);
 app.use("/auth", authRoutes);
+
 app.use("/trash", checkAuth, trashRoutes);
+
+app.use("/users", checkAuth, usersRoutes);
 
 // global error handler
 app.use((err, req, res, next) => {

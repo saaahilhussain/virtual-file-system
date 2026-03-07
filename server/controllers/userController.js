@@ -42,6 +42,8 @@ export const registerUser = async (req, res, next) => {
           email,
           password,
           rootDirId,
+          role: "user",
+          isDeleted: false,
         },
       ],
       { session },
@@ -80,9 +82,19 @@ export const registerUser = async (req, res, next) => {
 
 export const loginUser = async (req, res, next) => {
   const { email, password } = req.body;
+
   const user = await User.findOne({ email });
+
   if (!user) {
     return res.status(404).json({ error: "Invalid Credentials" });
+  }
+
+  if (user.isDeleted) {
+    return res.status(403).json({
+      error: "Account deactivated",
+      message:
+        "Your account has been deactivated. Please contact the administrator for assistance.",
+    });
   }
 
   const isPasswordValid = await user.comparePassword(password);
@@ -130,3 +142,4 @@ export const logoutAll = async (req, res) => {
   res.clearCookie("sid");
   res.status(204).end();
 };
+
