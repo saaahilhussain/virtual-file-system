@@ -71,7 +71,7 @@ function UsersView() {
               <tr>
                 <th style={{ paddingLeft: "16px" }}>NAME</th>
                 <th style={{ textAlign: "center" }}>EMAIL ID</th>
-                <th>ACTIONS</th>
+                <th style={{ textAlign: "center" }}>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
