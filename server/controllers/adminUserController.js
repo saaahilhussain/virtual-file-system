@@ -4,7 +4,18 @@ import Session from "../models/sessionModel.js";
 export const getAllUsers = async (req, res, next) => {
   try {
     const users = await User.find({}).select("-password");
-    return res.status(200).json(users);
+
+    const activeSessions = await Session.find({}).select("userId");
+    const loggedinUsers = new Set(
+      activeSessions.map((session) => session.userId.toString()),
+    );
+
+    const usersWithStatus = users.map((user) => ({
+      ...user.toObject(),
+      isLoggedIn: loggedinUsers.has(user._id.toString()),
+    }));
+
+    return res.status(200).json(usersWithStatus);
   } catch (err) {
     next(err);
   }

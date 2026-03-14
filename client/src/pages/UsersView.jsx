@@ -1,35 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import TopBar from "../components/TopBar";
+import { useNavigate } from "react-router-dom";
 
 function UsersView() {
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      name: "Sarah Johnson",
-      email: "sarah.j@fileshelter.app",
-      role: "admin",
-    },
-    {
-      id: 2,
-      name: "Alex Miller",
-      email: "a.miller@partner.com",
-      role: "user",
-    },
-    { id: 3, name: "David Kim", email: "david.k@designco.net", role: "user" },
-    {
-      id: 4,
-      name: "Laura Rivera",
-      email: "l.rivera@internal.io",
-      role: "user",
-    },
-    {
-      id: 5,
-      name: "Michael Wong",
-      email: "m.wong@fileshelter.app",
-      role: "user",
-    },
-  ]);
+  const [users, setUsers] = useState([]);
 
   const [contextMenuUser, setContextMenuUser] = useState(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
@@ -41,7 +16,58 @@ function UsersView() {
     name: "",
     email: "",
   });
+
+  const [userName, setUserName] = useState("");
+  const [userRole, setUserRole] = useState("");
+
   const [editRoleForm, setEditRoleForm] = useState({ role: "user" });
+
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchAllUsers();
+    fetchUser();
+  }, []);
+
+  async function fetchAllUsers() {
+    try {
+      const res = await fetch(`http://localhost:4000/users`, {
+        credentials: "include",
+      });
+      if (res.status === 403) {
+        navigate("/");
+      } else if (!res.ok) {
+        console.log("Error finding users");
+      }
+
+      const data = await res.json();
+      setUsers(data);
+    } catch (error) {
+      console.log(error.message);
+    }
+  }
+
+  async function fetchUser() {
+    try {
+      const response = await fetch(`http://localhost:4000/user`, {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Set user info if logged in
+        setUserName(data.name);
+        setUserRole(data.role);
+        // setUserPicture(data.picture);
+      } else if (response.status === 401) {
+        navigate("/");
+      } else {
+        // Handle other error statuses if needed
+        console.error("Error fetching user info:", response.status);
+      }
+    } catch (err) {
+      console.error("Error fetching user info:", err);
+    }
+  }
 
   const handleEditClick = (e, user) => {
     e.stopPropagation();
@@ -109,12 +135,25 @@ function UsersView() {
 
         <div className="content-scroll">
           <div className="section-header">
-            <h2
-              className="section-title"
-              style={{ fontSize: "24px", fontWeight: "600" }}
-            >
-              User Management
-            </h2>
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <h2
+                className="section-title"
+                style={{ fontSize: "24px", fontWeight: "600", margin: 0 }}
+              >
+                User Management
+              </h2>
+              {userName && (
+                <span
+                  style={{
+                    fontSize: "14px",
+                    color: "var(--text-secondary)",
+                    marginTop: "4px",
+                  }}
+                >
+                  {userName}: <i>{userRole}</i>
+                </span>
+              )}
+            </div>
             <div className="section-header-actions">
               <button className="upload-btn" style={{ padding: "8px 20px" }}>
                 + Add User

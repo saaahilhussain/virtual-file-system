@@ -1,10 +1,17 @@
 import express from "express";
-import checkAuth from "../middlewares/authMiddleware.js";
-import { getAllUsers, deleteUser, restoreUser, logoutUser, updateRole, updateUser } from "../controllers/adminUserController.js";
-    
+import checkAuth, { checkNotUser } from "../middlewares/authMiddleware.js";
+import {
+  getAllUsers,
+  deleteUser,
+  restoreUser,
+  logoutUser,
+  updateRole,
+  updateUser,
+} from "../controllers/adminUserController.js";
+
 const router = express.Router();
 
-router.get("/", checkAuth, getAllUsers);
+router.get("/", checkAuth, checkNotUser, getAllUsers);
 
 router.delete("/:id", checkAuth, deleteUser);
 

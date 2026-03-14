@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 function Sidebar({
@@ -7,6 +8,26 @@ function Sidebar({
 }) {
   const location = useLocation();
   const pathname = location.pathname;
+  const [data, setData] = useState([]);
+
+  useEffect(() => {
+    fetchUser();
+  }, []);
+
+  async function fetchUser() {
+    try {
+      const response = await fetch("http://localhost:4000/user", {
+        credentials: "include",
+      });
+      if (response.status === 403 || response.status === 401) {
+        return;
+      }
+      const data = await response.json();
+      setData(data);
+    } catch (error) {
+      console.log(error);
+    }
+  }
 
   return (
     <div className="sidebar">
@@ -116,25 +137,27 @@ function Sidebar({
           </svg>
           Starred
         </a>
-        <Link
-          to="/users"
-          className={`nav-item ${pathname === "/users" ? "active" : ""}`}
-        >
-          <svg
-            className="nav-icon"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+        {data.role !== "user" && (
+          <Link
+            to="/users"
+            className={`nav-item ${pathname === "/users" ? "active" : ""}`}
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-            />
-          </svg>
-          Users
-        </Link>
+            <svg
+              className="nav-icon"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+              />
+            </svg>
+            Users
+          </Link>
+        )}
         <a href="#" className="nav-item">
           <svg
             className="nav-icon"

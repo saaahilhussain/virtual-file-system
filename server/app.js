@@ -1,4 +1,3 @@
-import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -25,18 +24,17 @@ app.use(
 
 app.use("/directory", checkAuth, directoryRoutes);
 app.use("/file", checkAuth, fileRoutes);
-app.use("/user", userRoutes);
-app.use("/auth", authRoutes);
-
 app.use("/trash", checkAuth, trashRoutes);
 
-app.use("/users", checkAuth, usersRoutes);
+app.use("/user", userRoutes);
+app.use("/auth", authRoutes);
+app.use("/users", usersRoutes);
 
 // global error handler
 app.use((err, req, res, next) => {
   console.log(err);
-  return res.json(err);
-  // return res.status(err.status || 500).json({ error: "Something went wrong." });
+  // return res.json(err);
+  return res.status(err.status || 500).json({ error: "Something went wrong." });
 });
 
 app.listen(4000, () => {

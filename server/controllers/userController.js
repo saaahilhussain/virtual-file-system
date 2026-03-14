@@ -2,6 +2,7 @@ import mongoose, { Types } from "mongoose";
 import User from "../models/userModel.js";
 import Directory from "../models/directoryModel.js";
 import Session from "../models/sessionModel.js";
+import redisClient from "../config/redis.js";
 
 export const registerUser = async (req, res, next) => {
   const { name, email, password } = req.body;
@@ -50,23 +51,6 @@ export const registerUser = async (req, res, next) => {
     );
 
     session.commitTransaction();
-
-    res.clearCookie("token");
-    res.cookie(
-      "token",
-      Buffer.from(
-        JSON.stringify({
-          id: userId.toString(),
-          expiry: Math.round((Date.now() / 1000) * 60 * 60 * 24 * 7),
-        }),
-      ).toString("base64url"),
-      {
-        httpOnly: true,
-        signed: true,
-        maxAge: 60 * 1000 * 60 * 24 * 7,
-      },
-    );
-
     return res.status(201).json({ message: "User Registered" });
   } catch (err) {
     if (err.code === 121) {
@@ -108,9 +92,12 @@ export const loginUser = async (req, res, next) => {
     await allSessions[0].deleteOne();
   }
 
-  const session = await Session.create({ userId: user._id });
+  // const session = await Session.create({ userId: user._id });
+  const sessionId = crypto.randomUUID();
+  const redisKey = `session:${sessionId}`;
+  await redisClient.json.set(redisKey, "$", { userId: user._id });
 
-  res.cookie("sid", session.id, {
+  res.cookie("sid", sessionId, {
     httpOnly: true,
     signed: true,
     maxAge: 60 * 1000 * 60 * 24 * 7,
@@ -123,6 +110,7 @@ export const getUser = (req, res) => {
     name: req.user.name,
     email: req.user.email,
     picture: req.user.picture,
+    role: req.user.role,
   });
 };
 
@@ -142,4 +130,3 @@ export const logoutAll = async (req, res) => {
   res.clearCookie("sid");
   res.status(204).end();
 };
-

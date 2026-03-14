@@ -115,6 +115,7 @@ const Register = () => {
       if (res.ok) {
         setOtpVerified(true);
         setOtpError("");
+        setCountdown(0);
       } else {
         setOtpError(data.error || "Invalid or expired OTP.");
       }
@@ -263,6 +264,7 @@ const Register = () => {
                 type="button"
                 className="inline-action-btn"
                 onClick={handleSendOtp}
+                disabled={isSending || countdown > 0 || otpVerified}
               >
                 {isSending
                   ? "Sending..."

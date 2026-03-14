@@ -1,9 +1,6 @@
 import mongoose from "mongoose";
-import dotenv from "dotenv";
 import File from "./models/fileModel.js";
 import Directory from "./models/directoryModel.js";
-
-dotenv.config();
 
 async function test() {
   await mongoose.connect(process.env.MONGO_URI);
