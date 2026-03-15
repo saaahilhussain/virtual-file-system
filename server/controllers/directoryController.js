@@ -4,14 +4,11 @@ import Directory from "../models/directoryModel.js";
 import File from "../models/fileModel.js";
 
 export const getDirectory = async (req, res) => {
-  const user = req.user;
-  const id = req.params.id || user.rootDirId.toString();
+  const { rootDirId } = req.user;
+  const id = req.params.id || rootDirId;
 
   // Find the directory and verify ownership
-  const directoryData = await Directory.findOne({
-    _id: new ObjectId(id),
-  }).lean();
-
+  const directoryData = await Directory.findById(id).lean();
   if (!directoryData) {
     return res
       .status(404)

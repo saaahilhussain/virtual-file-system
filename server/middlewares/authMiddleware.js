@@ -1,6 +1,3 @@
-import Session from "../models/sessionModel.js";
-import User from "../models/userModel.js";
-
 import { ROLES } from "../config/roles.js";
 import redisClient from "../config/redis.js";
 
@@ -18,12 +15,7 @@ export default async function checkAuth(req, res, next) {
     return res.status(401).json({ error: "Not logged!" });
   }
 
-  const user = await User.findOne({ _id: session.userId });
-  if (!user) {
-    return res.status(401).json({ error: "Not logged in!" });
-  }
-
-  req.user = user;
+  req.user = { _id: session.userId, rootDirId: session.rootDirId };
   next();
 }
 

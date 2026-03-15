@@ -1,7 +1,6 @@
 import mongoose, { Types } from "mongoose";
 import User from "../models/userModel.js";
 import Directory from "../models/directoryModel.js";
-import Session from "../models/sessionModel.js";
 import redisClient from "../config/redis.js";
 
 export const registerUser = async (req, res, next) => {
@@ -88,23 +87,27 @@ export const loginUser = async (req, res, next) => {
 
   const sessionId = crypto.randomUUID();
   const redisKey = `session:${sessionId}`;
-  const sessionExpiry = 60 * 60 * 24;
-  await redisClient.json.set(redisKey, "$", { userId: user._id });
-  await redisClient.expire(redisKey, sessionExpiry);
+  const sessionExpiry = 60 * 60 * 24 * 1000;
+  await redisClient.json.set(redisKey, "$", {
+    userId: user._id,
+    rootDirId: user.rootDirId,
+  });
+  await redisClient.expire(redisKey, sessionExpiry / 1000);
 
   res.cookie("sid", sessionId, {
     signed: true,
-    maxAge: 60 * 1000 * 60 * 24,
+    maxAge: sessionExpiry,
   });
   return res.status(200).json({ message: "logged in" });
 };
 
-export const getUser = (req, res) => {
+export const getUser = async (req, res) => {
+  const user = await User.findById(req.user._id);
   return res.status(200).json({
-    name: req.user.name,
-    email: req.user.email,
-    picture: req.user.picture,
-    role: req.user.role,
+    name: user.name,
+    email: user.email,
+    picture: user.picture,
+    role: user.role,
   });
 };
 
@@ -117,9 +120,9 @@ export const logoutUser = async (req, res) => {
 
 export const logoutAll = async (req, res) => {
   const { sid } = req.signedCookies;
-  const session = await Session.findById(sid);
+  const session = await redisClient.json.get(`session:${sid}`);
 
-  await Session.deleteMany({ userId: session.userId });
+  await redisClient.del(`session:${sid}`);
 
   res.clearCookie("sid");
   res.status(204).end();

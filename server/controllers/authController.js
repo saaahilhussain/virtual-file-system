@@ -88,7 +88,7 @@ export const loginWithGoogle = async (req, res, next) => {
           _id: userId,
           name,
           email,
-          password,
+
           rootDirId,
           role: "user",
           isDeleted: false,
@@ -101,14 +101,14 @@ export const loginWithGoogle = async (req, res, next) => {
 
     const sessionId = crypto.randomUUID();
     const redisKey = `session:${sessionId}`;
-    const sessionExpiry = 60 * 60 * 24 * 7;
-    await redisClient.json.set(redisKey, "$", { userId });
-    await redisClient.expire(redisKey, sessionExpiry);
+    const sessionExpiry = 60 * 60 * 24 * 7 * 1000;
+    await redisClient.json.set(redisKey, "$", { userId, rootDirId });
+    await redisClient.expire(redisKey, sessionExpiry / 1000);
 
     res.cookie("sid", sessionId, {
       httpOnly: true,
       signed: true,
-      maxAge: 1000 * 60 * 60 * 24 * 7,
+      maxAge: sessionExpiry,
     });
 
     return res.status(201).json({ message: "User Registered and logged in." });
@@ -167,33 +167,32 @@ export const loginWithGithub = async (req, res, next) => {
         ],
         { mongooseSession },
       );
- await User.create(
-      [
-        {
-          _id: userId,
-          name,
-          email,
-          password,
-          rootDirId,
-          role: "user",
-          isDeleted: false,
-        },
-      ],  
-      { mongooseSession },
-    );
+      await User.create(
+        [
+          {
+            _id: userId,
+            name,
+            email,
+            rootDirId,
+            role: "user",
+            isDeleted: false,
+          },
+        ],
+        { mongooseSession },
+      );
 
       mongooseSession.commitTransaction();
 
       const sessionId = crypto.randomUUID();
       const redisKey = `session:${sessionId}`;
-      const sessionExpiry = 60 * 60 * 24 * 7;
-      await redisClient.json.set(redisKey, "$", { userId });
-      await redisClient.expire(redisKey, sessionExpiry);
+      const sessionExpiry = 60 * 60 * 24 * 7 * 1000;
+      await redisClient.json.set(redisKey, "$", { userId, rootDirId });
+      await redisClient.expire(redisKey, sessionExpiry / 1000);
 
       res.cookie("sid", sessionId, {
         httpOnly: true,
         signed: true,
-        maxAge: 1000 * 60 * 60 * 24 * 7,
+        maxAge: sessionExpiry,
       });
 
       return res
