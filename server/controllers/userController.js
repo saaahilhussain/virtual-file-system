@@ -86,21 +86,15 @@ export const loginUser = async (req, res, next) => {
     return res.status(404).json({ error: "Invalid Credentials" });
   }
 
-  const allSessions = await Session.find({ userId: user.id });
-
-  if (allSessions.length >= 3) {
-    await allSessions[0].deleteOne();
-  }
-
-  // const session = await Session.create({ userId: user._id });
   const sessionId = crypto.randomUUID();
   const redisKey = `session:${sessionId}`;
+  const sessionExpiry = 60 * 60 * 24;
   await redisClient.json.set(redisKey, "$", { userId: user._id });
+  await redisClient.expire(redisKey, sessionExpiry);
 
   res.cookie("sid", sessionId, {
-    httpOnly: true,
     signed: true,
-    maxAge: 60 * 1000 * 60 * 24 * 7,
+    maxAge: 60 * 1000 * 60 * 24,
   });
   return res.status(200).json({ message: "logged in" });
 };
@@ -116,7 +110,7 @@ export const getUser = (req, res) => {
 
 export const logoutUser = async (req, res) => {
   const { sid } = req.signedCookies;
-  await Session.findByIdAndDelete(sid);
+  await redisClient.del(`session:${sid}`);
   res.clearCookie("sid");
   res.status(204).end();
 };

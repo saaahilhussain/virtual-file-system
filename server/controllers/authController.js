@@ -1,11 +1,11 @@
 import mongoose, { Types } from "mongoose";
-import Session from "../models/sessionModel.js";
 import User from "../models/userModel.js";
 import Directory from "../models/directoryModel.js";
 import Otp from "../models/otpModel.js";
 import { verifyIdToken } from "../services/googleAuthService.js";
 import { verifyGithubCode } from "../services/githubAuthService.js";
 import { sendOtpService } from "../services/otpService.js";
+import redisClient from "../config/redis.js";
 
 export const sendOtp = async (req, res, next) => {
   const { email } = req.body;
@@ -44,20 +44,18 @@ export const loginWithGoogle = async (req, res, next) => {
   const user = await User.findOne({ email });
 
   if (user) {
-    const allSessions = await Session.find({ userId: user.id });
-
-    if (allSessions.length >= 2) {
-      await allSessions[0].deleteOne();
-    }
-
     if (!user.picture.includes("googleusercontent.com")) {
       user.picture = picture;
       await user.save();
     }
 
-    const session = await Session.create({ userId: user._id });
+    const sessionId = crypto.randomUUID();
+    const redisKey = `session:${sessionId}`;
+    const sessionExpiry = 60 * 60 * 24 * 7;
+    await redisClient.json.set(redisKey, "$", { userId: user._id });
+    await redisClient.expire(redisKey, sessionExpiry);
 
-    res.cookie("sid", session.id, {
+    res.cookie("sid", sessionId, {
       httpOnly: true,
       signed: true,
       maxAge: 1000 * 60 * 60 * 24 * 7,
@@ -90,18 +88,24 @@ export const loginWithGoogle = async (req, res, next) => {
           _id: userId,
           name,
           email,
-          picture,
+          password,
           rootDirId,
+          role: "user",
+          isDeleted: false,
         },
       ],
       { mongooseSession },
     );
 
-    const session = await Session.create([{ userId }], { mongooseSession });
-
     mongooseSession.commitTransaction();
 
-    res.cookie("sid", session[0].id, {
+    const sessionId = crypto.randomUUID();
+    const redisKey = `session:${sessionId}`;
+    const sessionExpiry = 60 * 60 * 24 * 7;
+    await redisClient.json.set(redisKey, "$", { userId });
+    await redisClient.expire(redisKey, sessionExpiry);
+
+    res.cookie("sid", sessionId, {
       httpOnly: true,
       signed: true,
       maxAge: 1000 * 60 * 60 * 24 * 7,
@@ -123,12 +127,6 @@ export const loginWithGithub = async (req, res, next) => {
     const user = await User.findOne({ email });
 
     if (user) {
-      const allSessions = await Session.find({ userId: user.id });
-
-      if (allSessions.length >= 2) {
-        await allSessions[0].deleteOne();
-      }
-
       if (
         !user.picture.includes("githubusercontent.com") &&
         !user.picture.includes("googleusercontent.com")
@@ -137,9 +135,13 @@ export const loginWithGithub = async (req, res, next) => {
         await user.save();
       }
 
-      const session = await Session.create({ userId: user._id });
+      const sessionId = crypto.randomUUID();
+      const redisKey = `session:${sessionId}`;
+      const sessionExpiry = 60 * 60 * 24 * 7;
+      await redisClient.json.set(redisKey, "$", { userId: user._id });
+      await redisClient.expire(redisKey, sessionExpiry);
 
-      res.cookie("sid", session.id, {
+      res.cookie("sid", sessionId, {
         httpOnly: true,
         signed: true,
         maxAge: 1000 * 60 * 60 * 24 * 7,
@@ -165,25 +167,30 @@ export const loginWithGithub = async (req, res, next) => {
         ],
         { mongooseSession },
       );
-
-      await User.create(
-        [
-          {
-            _id: userId,
-            name,
-            email,
-            picture,
-            rootDirId,
-          },
-        ],
-        { mongooseSession },
-      );
-
-      const session = await Session.create([{ userId }], { mongooseSession });
+ await User.create(
+      [
+        {
+          _id: userId,
+          name,
+          email,
+          password,
+          rootDirId,
+          role: "user",
+          isDeleted: false,
+        },
+      ],  
+      { mongooseSession },
+    );
 
       mongooseSession.commitTransaction();
 
-      res.cookie("sid", session[0].id, {
+      const sessionId = crypto.randomUUID();
+      const redisKey = `session:${sessionId}`;
+      const sessionExpiry = 60 * 60 * 24 * 7;
+      await redisClient.json.set(redisKey, "$", { userId });
+      await redisClient.expire(redisKey, sessionExpiry);
+
+      res.cookie("sid", sessionId, {
         httpOnly: true,
         signed: true,
         maxAge: 1000 * 60 * 60 * 24 * 7,
