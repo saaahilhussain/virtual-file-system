@@ -49,16 +49,30 @@ export const loginWithGoogle = async (req, res, next) => {
       await user.save();
     }
 
+    const allSessions = await redisClient.ft.search(
+      "userIdIdx",
+      `@userId:{${user.id}}`,
+      {
+        RETURN: [],
+      },
+    );
+
+    if (allSessions.total >= 2) {
+      await redisClient.del(allSessions.documents[0].id);
+    }
     const sessionId = crypto.randomUUID();
     const redisKey = `session:${sessionId}`;
-    const sessionExpiry = 60 * 60 * 24 * 7;
-    await redisClient.json.set(redisKey, "$", { userId: user._id });
-    await redisClient.expire(redisKey, sessionExpiry);
+    const sessionExpiry = 1000 * 60 * 60 * 24 * 7;
+    await redisClient.json.set(redisKey, "$", {
+      userId: user._id,
+      rootDirId: user.rootDirId,
+    });
+    await redisClient.expire(redisKey, sessionExpiry / 1000);
 
     res.cookie("sid", sessionId, {
       httpOnly: true,
       signed: true,
-      maxAge: 1000 * 60 * 60 * 24 * 7,
+      maxAge: sessionExpiry,
     });
     return res.status(200).json({ message: "logged in" });
   }
@@ -99,6 +113,17 @@ export const loginWithGoogle = async (req, res, next) => {
 
     mongooseSession.commitTransaction();
 
+    const allSessions = await redisClient.ft.search(
+      "userIdIdx",
+      `@userId:{${user.id}}`,
+      {
+        RETURN: [],
+      },
+    );
+
+    if (allSessions.total >= 2) {
+      await redisClient.del(allSessions.documents[0].id);
+    }
     const sessionId = crypto.randomUUID();
     const redisKey = `session:${sessionId}`;
     const sessionExpiry = 60 * 60 * 24 * 7 * 1000;
@@ -135,16 +160,30 @@ export const loginWithGithub = async (req, res, next) => {
         await user.save();
       }
 
+      const allSessions = await redisClient.ft.search(
+        "userIdIdx",
+        `@userId:{${user.id}}`,
+        {
+          RETURN: [],
+        },
+      );
+
+      if (allSessions.total >= 2) {
+        await redisClient.del(allSessions.documents[0].id);
+      }
       const sessionId = crypto.randomUUID();
       const redisKey = `session:${sessionId}`;
-      const sessionExpiry = 60 * 60 * 24 * 7;
-      await redisClient.json.set(redisKey, "$", { userId: user._id });
-      await redisClient.expire(redisKey, sessionExpiry);
+      const sessionExpiry = 1000 * 60 * 60 * 24 * 7;
+      await redisClient.json.set(redisKey, "$", {
+        userId: user._id,
+        rootDirId: user.rootDirId,
+      });
+      await redisClient.expire(redisKey, sessionExpiry / 1000);
 
       res.cookie("sid", sessionId, {
         httpOnly: true,
         signed: true,
-        maxAge: 1000 * 60 * 60 * 24 * 7,
+        maxAge: sessionExpiry,
       });
       return res.status(200).json({ message: "logged in" });
     }
@@ -183,6 +222,17 @@ export const loginWithGithub = async (req, res, next) => {
 
       mongooseSession.commitTransaction();
 
+      const allSessions = await redisClient.ft.search(
+        "userIdIdx",
+        `@userId:{${user.id}}`,
+        {
+          RETURN: [],
+        },
+      );
+
+      if (allSessions.total >= 2) {
+        await redisClient.del(allSessions.documents[0].id);
+      }
       const sessionId = crypto.randomUUID();
       const redisKey = `session:${sessionId}`;
       const sessionExpiry = 60 * 60 * 24 * 7 * 1000;
