@@ -6,9 +6,19 @@ import { verifyIdToken } from "../services/googleAuthService.js";
 import { verifyGithubCode } from "../services/githubAuthService.js";
 import { sendOtpService } from "../services/otpService.js";
 import redisClient from "../config/redis.js";
+import { z } from "zod";
+import { otpSchema } from "../validators/authValidators.js";
 
 export const sendOtp = async (req, res, next) => {
-  const { email } = req.body;
+  const { success, data, error } = z
+    .object({
+      email: z.email("Invalid email address"),
+    })
+    .safeParse(req.body);
+  if (!success) {
+    return res.status(400).json({ error: z.flattenError(error).fieldErrors });
+  }
+  const { email } = data;
 
   const existingEmail = await User.findOne({ email }).lean();
   if (existingEmail) {
@@ -25,7 +35,11 @@ export const sendOtp = async (req, res, next) => {
 };
 
 export const verifyOtp = async (req, res) => {
-  const { email, otp } = req.body;
+  const { success, data, error } = otpSchema.safeParse(req.body);
+  if (!success) {
+    return res.status(400).json({ error: z.flattenError(error).fieldErrors });
+  }
+  const { email, otp } = data;
 
   const otpRecord = await Otp.findOne({ email, otp });
 

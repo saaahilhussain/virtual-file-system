@@ -2,9 +2,15 @@ import mongoose, { Types } from "mongoose";
 import User from "../models/userModel.js";
 import Directory from "../models/directoryModel.js";
 import redisClient from "../config/redis.js";
+import { registerSchema, loginSchema } from "../validators/authValidators.js";
+import { z } from "zod";
 
 export const registerUser = async (req, res, next) => {
-  const { name, email, password } = req.body;
+  const { success, data, error } = registerSchema.safeParse(req.body);
+  if (!success) {
+    return res.status(400).json({ error: z.flattenError(error).fieldErrors });
+  }
+  const { name, email, password } = data;
 
   const foundUser = await User.findOne({ email });
   if (foundUser) {
@@ -64,7 +70,11 @@ export const registerUser = async (req, res, next) => {
 };
 
 export const loginUser = async (req, res, next) => {
-  const { email, password } = req.body;
+  const { success, data, error } = loginSchema.safeParse(req.body);
+  if (!success) {
+    return res.status(400).json({ error: "Invalid Credentials" });
+  }
+  const { email, password } = data;
 
   const user = await User.findOne({ email });
 
