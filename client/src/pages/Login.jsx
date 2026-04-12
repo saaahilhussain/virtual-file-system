@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import { loginWithGoogle } from "../apis/loginWithGoogle";
+import PreAuthHeader from "../components/PreAuthHeader";
 
 const Login = () => {
   const BASE_URL = "http://localhost:4000";
@@ -49,7 +50,7 @@ const Login = () => {
         setServerError(data.error);
       } else {
         // On success, navigate to home or any other protected route
-        navigate("/");
+        navigate("/app");
       }
     } catch (error) {
       console.error("Error:", error);
@@ -64,6 +65,7 @@ const Login = () => {
 
   return (
     <div className="auth-page">
+      <PreAuthHeader />
       {/* Theme Toggle */}
       <button
         className="theme-toggle"
@@ -180,7 +182,7 @@ const Login = () => {
                 console.log(data);
                 return;
               }
-              navigate("/");
+              navigate("/app");
             }}
             onError={() => {
               console.log("Login Failed");
@@ -243,7 +245,7 @@ const Login = () => {
                     if (data.error) {
                       setServerError(data.error);
                     } else {
-                      navigate("/");
+                      navigate("/app");
                     }
                   } catch (error) {
                     console.error("GitHub Login Error:", error);

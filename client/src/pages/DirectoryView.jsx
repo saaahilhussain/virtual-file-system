@@ -193,7 +193,7 @@ function DirectoryView() {
    */
   function handleRowClick(type, id) {
     if (type === "directory") {
-      navigate(`/directory/${id}`);
+      navigate(`/app/directory/${id}`);
     } else {
       window.location.href = `${BASE_URL}/file/${id}`;
     }

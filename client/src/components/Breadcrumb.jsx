@@ -5,9 +5,9 @@ function Breadcrumb({ trail }) {
 
   function handleClick(id) {
     if (id === null) {
-      navigate("/");
+      navigate("/app");
     } else {
-      navigate(`/directory/${id}`);
+      navigate(`/app/directory/${id}`);
     }
   }
 

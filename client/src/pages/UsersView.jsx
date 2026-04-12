@@ -35,7 +35,7 @@ function UsersView() {
         credentials: "include",
       });
       if (res.status === 403) {
-        navigate("/");
+        navigate("/app");
       } else if (!res.ok) {
         console.log("Error finding users");
       }
@@ -59,7 +59,7 @@ function UsersView() {
         setUserRole(data.role);
         // setUserPicture(data.picture);
       } else if (response.status === 401) {
-        navigate("/");
+        navigate("/app");
       } else {
         // Handle other error statuses if needed
         console.error("Error fetching user info:", response.status);

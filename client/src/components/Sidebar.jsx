@@ -103,8 +103,8 @@ function Sidebar({
 
         {/* Navigation */}
         <Link
-          to="/"
-          className={`nav-item ${pathname === "/" || pathname.startsWith("/directory") ? "active" : ""}`}
+          to="/app"
+          className={`nav-item ${pathname === "/app" || pathname.startsWith("/app/directory") ? "active" : ""}`}
         >
           <svg
             className="nav-icon"

@@ -1,14 +1,18 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import LandingPage from "./pages/LandingPage";
 import DirectoryView from "./pages/DirectoryView";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
 import TrashView from "./pages/TrashView";
 import UsersView from "./pages/UsersView";
 import GitHubCallback from "./pages/GitHubCallback";
-
 const router = createBrowserRouter([
   {
     path: "/",
+    element: <LandingPage />,
+  },
+  {
+    path: "/app",
     element: <DirectoryView />,
   },
   {
@@ -20,7 +24,7 @@ const router = createBrowserRouter([
     element: <Login />,
   },
   {
-    path: "/directory/:dirId",
+    path: "/app/directory/:dirId",
     element: <DirectoryView />,
   },
   {

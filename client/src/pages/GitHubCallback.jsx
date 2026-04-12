@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { loginWithGithub } from "../apis/loginWithGithub";
 
 const GitHubCallback = () => {
   const [error, setError] = useState(null);
