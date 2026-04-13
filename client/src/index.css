@@ -809,6 +809,7 @@ body.dark-mode .inline-action-btn:hover {
 
 /* ── Content Scroll ── */
 .content-scroll {
+  
   flex: 1;
   overflow-y: auto;
   padding: 35px;

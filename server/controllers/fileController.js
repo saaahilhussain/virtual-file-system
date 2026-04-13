@@ -20,9 +20,14 @@ export const uploadFile = async (req, res, next) => {
 
     const filename = req.headers.filename || "untitled";
     const filesize = req.headers.filesize;
+    const fileSizeInBytes = Number(filesize);
+
+    if (!Number.isFinite(fileSizeInBytes) || fileSizeInBytes < 0) {
+      return res.status(400).json({ error: "Invalid file size" });
+    }
 
     // size check
-    if (filesize > 100 * 1024 * 1024) {
+    if (fileSizeInBytes > 100 * 1024 * 1024) {
       return res.destroy();
     }
 
@@ -42,31 +47,72 @@ export const uploadFile = async (req, res, next) => {
 
     const fullFileName = `${fileId}${extension}`;
 
-    const writeStream = createWriteStream(`./storage/${fullFileName}`);
-    req.pipe(writeStream);
+    const filepath = `./storage/${fullFileName}`;
+    const writeStream = createWriteStream(filepath);
+    // req.pipe(writeStream);
 
-    req.on("end", async () => {
+    let totalFilesize = 0;
+    let requestCompleted = false;
+
+    const cleanupUpload = async () => {
+      await file.deleteOne();
+      await rm(`./storage/${fullFileName}`, { recursive: true }).catch(
+        () => {},
+      );
+    };
+
+    const failUpload = async (status, message) => {
+      if (requestCompleted) return;
+      requestCompleted = true;
+
+      if (!writeStream.destroyed) {
+        writeStream.destroy();
+      }
+
+      await cleanupUpload();
+
+      if (!res.headersSent) {
+        return res.status(status).json({ error: message });
+      }
+    };
+
+    req.on("data", (chunk) => {
+      totalFilesize += chunk.length;
+      const canContinue = writeStream.write(chunk);
+
+      if (!canContinue) {
+        req.pause();
+        writeStream.once("drain", () => {
+          req.resume();
+        });
+      }
+    });
+
+    req.on("end", () => {
+      writeStream.end();
+    });
+
+    writeStream.on("finish", async () => {
+      if (requestCompleted) return;
+
+      if (fileSizeInBytes !== totalFilesize) {
+        return failUpload(400, "File size has been tampered");
+      }
+
+      requestCompleted = true;
       return res.status(201).json({ message: "File Uploaded" });
     });
 
-    req.on("cancel", async () => {
-      await file.deleteOne();
-      await rm(`./storage/${fullFileName}`, { recursive: true }).catch(
-        () => {},
-      );
-      return res.status(404).json({
-        error: "File upload cancelled",
-      });
+    req.on("aborted", async () => {
+      return failUpload(400, "File upload cancelled");
     });
 
     req.on("error", async () => {
-      await file.deleteOne();
-      await rm(`./storage/${fullFileName}`, { recursive: true }).catch(
-        () => {},
-      );
-      return res.status(404).json({
-        error: "Could upload the file",
-      });
+      return failUpload(500, "Could not upload the file");
+    });
+
+    writeStream.on("error", async () => {
+      return failUpload(500, "Could not upload the file");
     });
   } catch (error) {
     next(error);
