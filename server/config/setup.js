@@ -46,6 +46,12 @@ try {
           isDeleted: {
             bsonType: "bool",
           },
+          createdAt: {
+            bsonType: "date",
+          },
+          updatedAt: {
+            bsonType: "date",
+          },
           __v: {
             bsonType: "int",
           },
@@ -53,6 +59,7 @@ try {
         additionalProperties: false,
       },
     },
+
     validationAction: "error",
     validationLevel: "strict",
   });
@@ -68,6 +75,7 @@ try {
           "parentDirId",
           "userId",
           "isTrashed",
+
           "trashedAt",
         ],
         properties: {
@@ -88,6 +96,12 @@ try {
           },
           trashedAt: {
             bsonType: ["date", "null"],
+          },
+          createdAt: {
+            bsonType: "date",
+          },
+          updatedAt: {
+            bsonType: "date",
           },
           __v: {
             bsonType: "int",
@@ -139,6 +153,12 @@ try {
           },
           trashedAt: {
             bsonType: ["date", "null"],
+          },
+          createdAt: {
+            bsonType: "date",
+          },
+          updatedAt: {
+            bsonType: "date",
           },
           __v: {
             bsonType: "int",

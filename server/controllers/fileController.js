@@ -110,6 +110,7 @@ export const renameFile = async (req, res, next) => {
   // Perform rename
   try {
     file.name = req.body.newFilename;
+    file.updatedAt = new Date(Date.now());
     await file.save();
 
     return res.status(200).json({ message: "Renamed" });

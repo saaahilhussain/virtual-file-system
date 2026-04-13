@@ -25,6 +25,15 @@ const userSchema = new Schema({
     default:
       "https://static.vecteezy.com/system/resources/thumbnails/002/318/271/small/user-profile-icon-free-vector.jpg",
   },
+  createdAt: {
+    type: Date,
+    default: null,
+  },
+  updatedAt: { type: Date, default: null },
+  isTrashed: {
+    type: Boolean,
+    default: false,
+  },
   rootDirId: {
     type: Schema.Types.ObjectId,
     required: true,

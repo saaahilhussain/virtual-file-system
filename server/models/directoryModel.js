@@ -1,4 +1,4 @@
-import { model, Schema } from "mongoose";
+import { model, now, Schema } from "mongoose";
 
 const directorySchema = new Schema(
   {
@@ -15,6 +15,11 @@ const directorySchema = new Schema(
       default: null,
       ref: "Directory",
     },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+    updatedAt: { type: Date, default: Date.now },
     isTrashed: {
       type: Boolean,
       default: false,

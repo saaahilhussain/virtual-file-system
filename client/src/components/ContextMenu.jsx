@@ -1,4 +1,5 @@
 import { useState } from "react";
+import DetailsModal from "./DetailsModal";
 
 function ContextMenu({
   item,
@@ -14,29 +15,7 @@ function ContextMenu({
   const [showDetails, setShowDetails] = useState(false);
 
   const detailsModal = showDetails && (
-    <div className="modal-overlay" onClick={() => setShowDetails(false)}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <h2 className="modal-title">Details</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px', fontSize: '14px', color: 'var(--text-primary)' }}>
-          <div><strong>Name:</strong> {item.name}</div>
-          <div><strong>Path:</strong> /</div>
-          <div><strong>Size:</strong> 0</div>
-          <div><strong>Created At:</strong> 2026-04-13T12:00:00Z</div>
-          <div><strong>Updated At:</strong> 2026-04-13T12:00:00Z</div>
-        </div>
-        <div className="modal-actions" style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
-          <button
-            className="modal-btn modal-btn-secondary"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowDetails(false);
-            }}
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
+    <DetailsModal item={item} onClose={() => setShowDetails(false)} />
   );
 
   // Directory context menu

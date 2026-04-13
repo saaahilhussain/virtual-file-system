@@ -23,6 +23,14 @@ const fileSchema = new Schema(
       required: true,
       ref: "Directory",
     },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now,
+    },
     isTrashed: {
       type: Boolean,
       default: false,
