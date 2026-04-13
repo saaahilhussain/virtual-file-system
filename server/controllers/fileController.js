@@ -19,11 +19,14 @@ export const uploadFile = async (req, res, next) => {
     }
 
     const filename = req.headers.filename || "untitled";
+    const filesize = req.headers.filesize;
+
     const extension = path.extname(filename);
 
     const file = await File.insertOne({
       extension,
       name: filename,
+      size: filesize,
       parentDirId: parentDirData._id,
       userId: req.user._id,
       isTrashed: false,
@@ -41,8 +44,21 @@ export const uploadFile = async (req, res, next) => {
       return res.status(201).json({ message: "File Uploaded" });
     });
 
+    req.on("cancel", async () => {
+      await file.deleteOne();
+      await rm(`./storage/${fullFileName}`, { recursive: true }).catch(
+        () => {},
+      );
+      return res.status(404).json({
+        error: "File upload cancelled",
+      });
+    });
+
     req.on("error", async () => {
       await file.deleteOne();
+      await rm(`./storage/${fullFileName}`, { recursive: true }).catch(
+        () => {},
+      );
       return res.status(404).json({
         error: "Could upload the file",
       });

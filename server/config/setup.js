@@ -108,6 +108,7 @@ try {
         required: [
           "_id",
           "name",
+          "size",
           "extension",
           "userId",
           "parentDirId",
@@ -123,6 +124,9 @@ try {
           },
           name: {
             bsonType: "string",
+          },
+          size: {
+            bsonType: "int",
           },
           userId: {
             bsonType: "objectId",

@@ -8,7 +8,7 @@ import DirectoryList from "../components/DirectoryList";
 import Breadcrumb from "../components/Breadcrumb";
 
 function DirectoryView() {
-  const BASE_URL = "http://localhost:4000";
+  const BASE_URL = import.meta.env.VITE_BACKEND_BASE_URI;
   const { dirId } = useParams();
   const navigate = useNavigate();
 
@@ -205,6 +205,7 @@ function DirectoryView() {
   function handleFileSelect(e) {
     const selectedFiles = Array.from(e.target.files);
     if (selectedFiles.length === 0) return;
+    console.log(selectedFiles);
 
     // Build a list of "temp" items
     const newItems = selectedFiles.map((file) => {
@@ -212,6 +213,7 @@ function DirectoryView() {
       return {
         file,
         name: file.name,
+        size: file.size,
         id: tempId,
         isUploading: false,
       };
@@ -268,6 +270,7 @@ function DirectoryView() {
     xhr.open("POST", `${BASE_URL}/file/${dirId || ""}`, true);
     xhr.withCredentials = true;
     xhr.setRequestHeader("filename", currentItem.name);
+    xhr.setRequestHeader("filesize", currentItem.size);
 
     xhr.upload.addEventListener("progress", (evt) => {
       if (evt.lengthComputable) {
