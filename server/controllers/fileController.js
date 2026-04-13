@@ -21,6 +21,11 @@ export const uploadFile = async (req, res, next) => {
     const filename = req.headers.filename || "untitled";
     const filesize = req.headers.filesize;
 
+    // size check
+    if (filesize > 100 * 1024 * 1024) {
+      return res.destroy();
+    }
+
     const extension = path.extname(filename);
 
     const file = await File.insertOne({
