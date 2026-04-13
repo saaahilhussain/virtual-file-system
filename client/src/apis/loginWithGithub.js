@@ -7,7 +7,7 @@ export async function loginWithGithub(code) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ code }),
-    credentials: "include", // essential for setting the cookie
+    credentials: "include",
   });
 
   const data = await res.json();

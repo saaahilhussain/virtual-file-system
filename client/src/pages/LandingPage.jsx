@@ -32,7 +32,7 @@ const LandingPage = () => {
           style={{ backgroundColor: "var(--accent-black)" }}
         ></div>
 
-        <div className="relative z-10 max-w-4xl mx-auto flex flex-col items-center pt-16">
+        <div className="relative z-10 max-w-4xl mx-auto flex flex-col items-center pt-32">
           <h1
             className="text-6xl md:text-8xl font-bold font-['Outfit'] mb-8 tracking-tight"
             style={{ color: "var(--text-primary)" }}
@@ -52,7 +52,7 @@ const LandingPage = () => {
               className="px-10 py-4 rounded-full text-lg font-semibold transition-all hover:-translate-y-1 hover:shadow-2xl"
               style={{
                 backgroundColor: "var(--accent-black)",
-                color: "white",
+                color: "var(--bg-canvas)",
                 boxShadow: "0 20px 40px rgba(0,0,0,0.15)",
               }}
             >

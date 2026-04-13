@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 function ContextMenu({
   item,
   contextMenuPos,
@@ -9,87 +11,142 @@ function ContextMenu({
   handleRowClick,
   BASE_URL,
 }) {
+  const [showDetails, setShowDetails] = useState(false);
+
+  const detailsModal = showDetails && (
+    <div className="modal-overlay" onClick={() => setShowDetails(false)}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <h2 className="modal-title">Details</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px', fontSize: '14px', color: 'var(--text-primary)' }}>
+          <div><strong>Name:</strong> {item.name}</div>
+          <div><strong>Path:</strong> /</div>
+          <div><strong>Size:</strong> 0</div>
+          <div><strong>Created At:</strong> 2026-04-13T12:00:00Z</div>
+          <div><strong>Updated At:</strong> 2026-04-13T12:00:00Z</div>
+        </div>
+        <div className="modal-actions" style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            className="modal-btn modal-btn-secondary"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowDetails(false);
+            }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   // Directory context menu
   if (item.isDirectory) {
     return (
-      <div
-        className="context-menu open"
-        style={{ top: contextMenuPos.y, left: contextMenuPos.x }}
-      >
+      <>
         <div
-          className="context-menu-item"
-          onClick={() => handleRowClick("directory", item.id)}
+          className="context-menu open"
+          style={{ top: contextMenuPos.y, left: contextMenuPos.x }}
         >
-          <svg
-            width="15"
-            height="15"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            viewBox="0 0 24 24"
+          <div
+            className="context-menu-item"
+            onClick={() => handleRowClick("directory", item.id)}
           >
-            <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-          </svg>
-          Open
-        </div>
-        <div
-          className="context-menu-item"
-          onClick={() => openRenameModal("directory", item.id, item.name)}
-        >
-          <svg
-            width="15"
-            height="15"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            viewBox="0 0 24 24"
+            <svg
+              width="15"
+              height="15"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              viewBox="0 0 24 24"
+            >
+              <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+            Open
+          </div>
+          <div
+            className="context-menu-item"
+            onClick={() => openRenameModal("directory", item.id, item.name)}
           >
-            <path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-          </svg>
-          Rename
-        </div>
-        <div className="context-menu-item">
-          <svg
-            width="15"
-            height="15"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            viewBox="0 0 24 24"
+            <svg
+              width="15"
+              height="15"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              viewBox="0 0 24 24"
+            >
+              <path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+            </svg>
+            Rename
+          </div>
+          <div className="context-menu-item">
+            <svg
+              width="15"
+              height="15"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              viewBox="0 0 24 24"
+            >
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+            </svg>
+            Star
+          </div>
+          <div className="context-menu-divider"></div>
+          <div
+            className="context-menu-item"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowDetails(true);
+            }}
           >
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-          </svg>
-          Star
-        </div>
-        <div className="context-menu-divider"></div>
-        <div
-          className="context-menu-item danger"
-          onClick={() => handleDeleteDirectory(item.id)}
-        >
-          <svg
-            width="15"
-            height="15"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            viewBox="0 0 24 24"
+            <svg
+              width="15"
+              height="15"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              viewBox="0 0 24 24"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+            Details
+          </div>
+          <div className="context-menu-divider"></div>
+          <div
+            className="context-menu-item danger"
+            onClick={() => handleDeleteDirectory(item.id)}
           >
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-            <path d="M10 11v6M14 11v6" />
-            <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
-          </svg>
-          Move to Trash
+            <svg
+              width="15"
+              height="15"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              viewBox="0 0 24 24"
+            >
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+              <path d="M10 11v6M14 11v6" />
+              <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+            </svg>
+            Move to Trash
+          </div>
         </div>
-      </div>
+        {detailsModal}
+      </>
     );
   } else {
     // File context menu — uploading
@@ -123,108 +180,135 @@ function ContextMenu({
     } else {
       // File context menu — normal
       return (
-        <div
-          className="context-menu open"
-          style={{ top: contextMenuPos.y, left: contextMenuPos.x }}
-        >
+        <>
           <div
-            className="context-menu-item"
-            onClick={() => handleRowClick("file", item.id)}
+            className="context-menu open"
+            style={{ top: contextMenuPos.y, left: contextMenuPos.x }}
           >
-            <svg
-              width="15"
-              height="15"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              viewBox="0 0 24 24"
+            <div
+              className="context-menu-item"
+              onClick={() => handleRowClick("file", item.id)}
             >
-              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
-              <polyline points="15 3 21 3 21 9" />
-              <line x1="10" y1="14" x2="21" y2="3" />
-            </svg>
-            Open
-          </div>
-          <div
-            className="context-menu-item"
-            onClick={() =>
-              (window.location.href = `${BASE_URL}/file/${item.id}?action=download`)
-            }
-          >
-            <svg
-              width="15"
-              height="15"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              viewBox="0 0 24 24"
+              <svg
+                width="15"
+                height="15"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
+                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+              Open
+            </div>
+            <div
+              className="context-menu-item"
+              onClick={() =>
+                (window.location.href = `${BASE_URL}/file/${item.id}?action=download`)
+              }
             >
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            Download
-          </div>
-          <div
-            className="context-menu-item"
-            onClick={() => openRenameModal("file", item.id, item.name)}
-          >
-            <svg
-              width="15"
-              height="15"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              viewBox="0 0 24 24"
+              <svg
+                width="15"
+                height="15"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Download
+            </div>
+            <div
+              className="context-menu-item"
+              onClick={() => openRenameModal("file", item.id, item.name)}
             >
-              <path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-            </svg>
-            Rename
-          </div>
-          <div className="context-menu-item">
-            <svg
-              width="15"
-              height="15"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              viewBox="0 0 24 24"
+              <svg
+                width="15"
+                height="15"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
+                <path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+              </svg>
+              Rename
+            </div>
+            <div className="context-menu-item">
+              <svg
+                width="15"
+                height="15"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>
+              Star
+            </div>
+            <div className="context-menu-divider"></div>
+            <div
+              className="context-menu-item"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDetails(true);
+              }}
             >
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-            </svg>
-            Star
-          </div>
-          <div className="context-menu-divider"></div>
-          <div
-            className="context-menu-item danger"
-            onClick={() => handleDeleteFile(item.id)}
-          >
-            <svg
-              width="15"
-              height="15"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              viewBox="0 0 24 24"
+              <svg
+                width="15"
+                height="15"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+              Details
+            </div>
+            <div className="context-menu-divider"></div>
+            <div
+              className="context-menu-item danger"
+              onClick={() => handleDeleteFile(item.id)}
             >
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-              <path d="M10 11v6M14 11v6" />
-              <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
-            </svg>
-            Move to Trash
+              <svg
+                width="15"
+                height="15"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                <path d="M10 11v6M14 11v6" />
+                <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+              </svg>
+              Move to Trash
+            </div>
           </div>
-        </div>
+          {detailsModal}
+        </>
       );
     }
   }

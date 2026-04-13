@@ -13,11 +13,11 @@ import { connectDB } from "./config/db.js";
 await connectDB();
 const app = express();
 
-app.use(cookieParser("random-bytes-123@#!"));
+app.use(cookieParser(process.env.SESSION_SECRET));
 app.use(express.json());
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: process.env.CLIENT_URI,
     credentials: true,
   }),
 );
@@ -37,6 +37,6 @@ app.use((err, req, res, next) => {
   return res.status(err.status || 500).json({ error: "Something went wrong." });
 });
 
-app.listen(4000, () => {
+app.listen(process.env.PORT, () => {
   console.log(`Server Started`);
 });
