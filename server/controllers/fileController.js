@@ -100,6 +100,16 @@ export const uploadFile = async (req, res, next) => {
       parentDirData.size += totalFilesize;
       await parentDirData.save();
 
+      // goes inside nested directories
+
+      let parentId = parentDirData.parentDirId;
+      while (parentId) {
+        const dir = await Directory.findById(parentId);
+        dir.size += totalFilesize;
+        await dir.save();
+        parentId = dir.parentDirId;
+      }
+
       requestCompleted = true;
       return res.status(201).json({ message: "File Uploaded" });
     });
