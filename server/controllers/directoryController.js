@@ -3,6 +3,20 @@ import { rm } from "fs/promises";
 import Directory from "../models/directoryModel.js";
 import File from "../models/fileModel.js";
 
+async function updateAncestorSizes(startParentId, delta) {
+  if (!startParentId || !Number.isFinite(delta) || delta === 0) return;
+
+  let parentId = startParentId;
+  while (parentId) {
+    const dir = await Directory.findById(parentId);
+    if (!dir) break;
+
+    dir.size = Math.max(0, (dir.size || 0) + delta);
+    await dir.save();
+    parentId = dir.parentDirId;
+  }
+}
+
 export const getDirectory = async (req, res) => {
   const { rootDirId } = req.user;
   const id = req.params.id || rootDirId;
@@ -52,7 +66,7 @@ export const createDirectory = async (req, res, next) => {
       userId: user._id,
     });
 
-    return res.status(200).json({ message: "Directory Created!" }); 
+    return res.status(200).json({ message: "Directory Created!" });
   } catch (err) {
     next(err);
   }
@@ -80,7 +94,6 @@ export const renameDirectory = async (req, res, next) => {
 };
 
 export const trashDirectory = async (req, res, next) => {
-  console.log("--> [DEBUG] trashDirectory called for id:", req.params.id);
   const { id } = req.params;
   const user = req.user;
 
@@ -89,11 +102,15 @@ export const trashDirectory = async (req, res, next) => {
       _id: new ObjectId(id),
       userId: user._id,
     },
-    { projection: { _id: 1 } },
+    { _id: 1, parentDirId: 1, size: 1, isTrashed: 1 },
   );
 
   if (!directoryData)
     return res.status(404).json({ error: "Directory not found" });
+
+  if (directoryData.isTrashed) {
+    return res.json({ message: "Directory moved to trash" });
+  }
 
   const trashedAt = new Date();
 
@@ -132,6 +149,11 @@ export const trashDirectory = async (req, res, next) => {
     { $set: { isTrashed: true, trashedAt } },
   );
 
+  await updateAncestorSizes(
+    directoryData.parentDirId,
+    -(Number(directoryData.size) || 0),
+  );
+
   return res.json({ message: "Directory moved to trash" });
 };
 
@@ -144,11 +166,15 @@ export const restoreDirectory = async (req, res, next) => {
       _id: new ObjectId(id),
       userId: user._id,
     },
-    { projection: { _id: 1 } },
+    { _id: 1, parentDirId: 1, size: 1, isTrashed: 1 },
   );
 
   if (!directoryData)
     return res.status(404).json({ error: "Directory not found" });
+
+  if (!directoryData.isTrashed) {
+    return res.json({ message: "Directory restored" });
+  }
 
   async function restoreDirContent(idx) {
     let files = await File.find(
@@ -185,14 +211,15 @@ export const restoreDirectory = async (req, res, next) => {
     { $set: { isTrashed: false, trashedAt: null } },
   );
 
+  await updateAncestorSizes(
+    directoryData.parentDirId,
+    Number(directoryData.size) || 0,
+  );
+
   return res.json({ message: "Directory restored" });
 };
 
 export const permanentlyDeleteDirectory = async (req, res, next) => {
-  console.log(
-    "--> [DEBUG] permanentlyDeleteDirectory called for id:",
-    req.params.id,
-  );
   const { id } = req.params;
   const user = req.user;
 
@@ -201,7 +228,7 @@ export const permanentlyDeleteDirectory = async (req, res, next) => {
       _id: new ObjectId(id),
       userId: user._id,
     },
-    { projection: { _id: 1 } },
+    { _id: 1, parentDirId: 1, size: 1, isTrashed: 1 },
   );
 
   if (!directoryData)
@@ -229,6 +256,13 @@ export const permanentlyDeleteDirectory = async (req, res, next) => {
   }
 
   const { files, directories } = await getDirContent(id);
+
+  if (!directoryData.isTrashed) {
+    await updateAncestorSizes(
+      directoryData.parentDirId,
+      -(Number(directoryData.size) || 0),
+    );
+  }
 
   for (const { _id, extension } of files) {
     await rm(`./storage/${_id.toString()}${extension}`).catch(() => {});
