@@ -97,6 +97,9 @@ export const uploadFile = async (req, res, next) => {
         return failUpload(400, "File size has been tampered");
       }
 
+      parentDirData.size += totalFilesize;
+      await parentDirData.save();
+
       requestCompleted = true;
       return res.status(201).json({ message: "File Uploaded" });
     });

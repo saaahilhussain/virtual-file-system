@@ -8,8 +8,8 @@ const directorySchema = new Schema(
     },
     size: {
       type: Number,
+      default: 0,
       required: true,
-      Default: 0,
     },
     userId: {
       type: Schema.Types.ObjectId,

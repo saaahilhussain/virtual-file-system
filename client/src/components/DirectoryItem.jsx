@@ -112,7 +112,7 @@ function DirectoryItem({
             <span>{item.name}</span>
           </div>
         </td>
-        <td>{item.isDirectory ? "—" : formatSize(item.size)}</td>
+        <td>{formatSize(item.size)}</td>
         <td>{typeInfo.label}</td>
         <td>
           <button

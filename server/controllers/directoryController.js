@@ -52,7 +52,7 @@ export const createDirectory = async (req, res, next) => {
       userId: user._id,
     });
 
-    return res.status(200).json({ message: "Directory Created!" });
+    return res.status(200).json({ message: "Directory Created!" }); 
   } catch (err) {
     next(err);
   }
