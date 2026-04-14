@@ -6,6 +6,11 @@ const directorySchema = new Schema(
       type: String,
       required: true,
     },
+    size: {
+      type: Number,
+      required: true,
+      Default: 0,
+    },
     userId: {
       type: Schema.Types.ObjectId,
       required: true,

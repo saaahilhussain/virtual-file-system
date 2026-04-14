@@ -56,9 +56,7 @@ export const uploadFile = async (req, res, next) => {
 
     const cleanupUpload = async () => {
       await file.deleteOne();
-      await rm(`./storage/${fullFileName}`, { recursive: true }).catch(
-        () => {},
-      );
+      await rm(filepath, { recursive: true }).catch(() => {});
     };
 
     const failUpload = async (status, message) => {

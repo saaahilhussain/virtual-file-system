@@ -85,6 +85,9 @@ try {
           name: {
             bsonType: "string",
           },
+          size: {
+            bsonType: "int",
+          },
           parentDirId: {
             bsonType: ["objectId", "null"],
           },
