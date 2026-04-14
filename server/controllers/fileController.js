@@ -4,6 +4,20 @@ import path from "path";
 import Directory from "../models/directoryModel.js";
 import File from "../models/fileModel.js";
 
+async function updateAncestorSizes(startParentId, delta) {
+  if (!startParentId || !Number.isFinite(delta) || delta === 0) return;
+
+  let parentId = startParentId;
+  while (parentId) {
+    const dir = await Directory.findById(parentId);
+    if (!dir) break;
+
+    dir.size = Math.max(0, (dir.size || 0) + delta);
+    await dir.save();
+    parentId = dir.parentDirId;
+  }
+}
+
 export const uploadFile = async (req, res, next) => {
   const parentDirId = req.params.parentDirId || req.user.rootDirId;
 
@@ -36,7 +50,7 @@ export const uploadFile = async (req, res, next) => {
     const file = await File.insertOne({
       extension,
       name: filename,
-      size: filesize,
+      size: fileSizeInBytes,
       parentDirId: parentDirData._id,
       userId: req.user._id,
       isTrashed: false,
@@ -94,21 +108,10 @@ export const uploadFile = async (req, res, next) => {
       if (requestCompleted) return;
 
       if (fileSizeInBytes !== totalFilesize) {
-        return failUpload(400, "File size has been tampered");
+        return failUpload(400, "Client has tampered file size");
       }
 
-      parentDirData.size += totalFilesize;
-      await parentDirData.save();
-
-      // goes inside nested directories
-
-      let parentId = parentDirData.parentDirId;
-      while (parentId) {
-        const dir = await Directory.findById(parentId);
-        dir.size += totalFilesize;
-        await dir.save();
-        parentId = dir.parentDirId;
-      }
+      await updateAncestorSizes(parentDirData._id, totalFilesize);
 
       requestCompleted = true;
       return res.status(201).json({ message: "File Uploaded" });
@@ -184,7 +187,7 @@ export const renameFile = async (req, res, next) => {
 
 export const trashFile = async (req, res, next) => {
   const { id } = req.params;
-  const file = await File.findOne({ _id: id });
+  const file = await File.findOne({ _id: id, userId: req.user._id });
 
   try {
     if (!file) {
@@ -193,9 +196,14 @@ export const trashFile = async (req, res, next) => {
       });
     }
 
+    if (file.isTrashed) {
+      return res.status(200).json({ message: "File moved to trash" });
+    }
+
     file.isTrashed = true;
     file.trashedAt = new Date();
     await file.save();
+    await updateAncestorSizes(file.parentDirId, -(Number(file.size) || 0));
 
     return res.status(200).json({ message: "File moved to trash" });
   } catch (err) {
@@ -205,7 +213,7 @@ export const trashFile = async (req, res, next) => {
 
 export const restoreFile = async (req, res, next) => {
   const { id } = req.params;
-  const file = await File.findOne({ _id: id });
+  const file = await File.findOne({ _id: id, userId: req.user._id });
 
   try {
     if (!file) {
@@ -214,9 +222,14 @@ export const restoreFile = async (req, res, next) => {
       });
     }
 
+    if (!file.isTrashed) {
+      return res.status(200).json({ message: "File restored" });
+    }
+
     file.isTrashed = false;
     file.trashedAt = null;
     await file.save();
+    await updateAncestorSizes(file.parentDirId, Number(file.size) || 0);
 
     return res.status(200).json({ message: "File restored" });
   } catch (err) {
@@ -226,13 +239,17 @@ export const restoreFile = async (req, res, next) => {
 
 export const permanentlyDeleteFile = async (req, res, next) => {
   const { id } = req.params;
-  const file = await File.findOne({ _id: id });
+  const file = await File.findOne({ _id: id, userId: req.user._id });
 
   try {
     if (!file) {
       return res.status(404).json({
         error: "File not found :(",
       });
+    }
+
+    if (!file.isTrashed) {
+      await updateAncestorSizes(file.parentDirId, -(Number(file.size) || 0));
     }
 
     await File.deleteOne({ _id: file._id });
