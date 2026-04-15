@@ -201,7 +201,7 @@ function TopBar({
           id="file-upload"
           type="file"
           style={{ display: "none" }}
-          multiple
+          // multiple
           onChange={handleFileSelect}
         />
 

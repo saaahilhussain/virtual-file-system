@@ -46,7 +46,6 @@ function DirectoryView() {
 
   // Uploading states
   const fileInputRef = useRef(null);
-  const [uploadQueue, setUploadQueue] = useState([]); // queued items to upload
   const [uploadXhrMap, setUploadXhrMap] = useState({}); // track XHR per item
   const [progressMap, setProgressMap] = useState({}); // track progress per item
   const [isUploading, setIsUploading] = useState(false); // indicates if an upload is in progress
@@ -191,94 +190,75 @@ function DirectoryView() {
   }
 
   /**
-   * Select multiple files
+   * Select a file and start upload
    */
   function handleFileSelect(e) {
-    const selectedFiles = Array.from(e.target.files);
-    if (selectedFiles.length === 0) return;
-    console.log(selectedFiles);
+    const file = e.target.files?.[0];
 
-    // Build a list of "temp" items
-    const newItems = selectedFiles.map((file) => {
-      const tempId = `temp-${Date.now()}-${Math.random()}`;
-      return {
-        file,
-        name: file.name,
-        size: file.size,
-        id: tempId,
-        isUploading: false,
-      };
-    });
+    if (!file) return;
 
-    // Put them at the top of the existing list
-    setFilesList((prev) => [...newItems, ...prev]);
+    if (isUploading) {
+      setErrorMessage("An upload is already in progress, please wait");
+      setTimeout(() => setErrorMessage(""), 3000);
+      e.target.value = "";
+      return;
+    }
 
-    // Initialize progress=0 for each
-    newItems.forEach((item) => {
-      setProgressMap((prev) => ({ ...prev, [item.id]: 0 }));
-    });
+    // Build a single temp item
+    const tempItem = {
+      file,
+      name: file.name,
+      size: file.size,
+      id: `temp-${Date.now()}-${Math.random()}`,
+      isUploading: false,
+    };
 
-    // Add them to the uploadQueue
-    setUploadQueue((prev) => [...prev, ...newItems]);
+    // Add it to the top of the existing list
+    setFilesList((prev) => [tempItem, ...prev]);
 
     // Clear file input so the same file can be chosen again if needed
     e.target.value = "";
 
-    // Start uploading queue if not already uploading
-    if (!isUploading) {
-      setIsUploading(true);
-      // begin the queue process
-      processUploadQueue([...uploadQueue, ...newItems.reverse()]);
-    }
+    // Start uploading
+    setIsUploading(true);
+    uploadSingleFile(tempItem);
   }
 
   /**
-   * Upload items in queue one by one
+   * Upload a single file
    */
-  function processUploadQueue(queue) {
-    if (queue.length === 0) {
-      // No more items to upload
-      setIsUploading(false);
-      setUploadQueue([]);
-      setTimeout(() => {
-        getDirectoryItems();
-        getUserStorageInfo();
-      }, 1000);
-      return;
-    }
-
-    // Take first item
-    const [currentItem, ...restQueue] = queue;
-
+  function uploadSingleFile(item) {
     // Mark it as isUploading: true
     setFilesList((prev) =>
-      prev.map((f) =>
-        f.id === currentItem.id ? { ...f, isUploading: true } : f,
-      ),
+      prev.map((f) => (f.id === item.id ? { ...f, isUploading: true } : f)),
     );
 
     // Start upload
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `${BASE_URL}/file/${dirId || ""}`, true);
     xhr.withCredentials = true;
-    xhr.setRequestHeader("filename", currentItem.name);
-    xhr.setRequestHeader("filesize", currentItem.size);
+    xhr.setRequestHeader("filename", item.name);
+    xhr.setRequestHeader("filesize", item.size);
 
     xhr.upload.addEventListener("progress", (evt) => {
       if (evt.lengthComputable) {
         const progress = (evt.loaded / evt.total) * 100;
-        setProgressMap((prev) => ({ ...prev, [currentItem.id]: progress }));
+        setProgressMap((prev) => ({ ...prev, [item.id]: progress }));
       }
     });
 
     xhr.addEventListener("load", () => {
-      // Move on to the next item
-      processUploadQueue(restQueue);
+      // Upload complete
+      setIsUploading(false);
+      setTimeout(() => {
+        getDirectoryItems();
+        getUserStorageInfo();
+      }, 1000);
     });
 
-    // If user cancels, remove from the queue
-    setUploadXhrMap((prev) => ({ ...prev, [currentItem.id]: xhr }));
-    xhr.send(currentItem.file);
+    // Store XHR for potential cancellation
+    setUploadXhrMap((prev) => ({ ...prev, [item.id]: xhr }));
+    xhr.send(item.file);
   }
 
   /**
@@ -289,8 +269,6 @@ function DirectoryView() {
     if (xhr) {
       xhr.abort();
     }
-    // Remove it from queue if still there
-    setUploadQueue((prev) => prev.filter((item) => item.id !== tempId));
 
     // Remove from filesList
     setFilesList((prev) => prev.filter((f) => f.id !== tempId));
@@ -307,6 +285,9 @@ function DirectoryView() {
       delete copy[tempId];
       return copy;
     });
+
+    // Reset uploading state
+    setIsUploading(false);
   }
 
   /**
