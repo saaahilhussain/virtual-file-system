@@ -17,29 +17,88 @@ async function updateAncestorSizes(startParentId, delta) {
   }
 }
 
+async function buildLegacyPathIds(directoryData, userId) {
+  const pathIds = [];
+  const visited = new Set();
+  let current = directoryData;
+
+  while (current) {
+    const currentId = current._id?.toString();
+    if (!currentId || visited.has(currentId)) break;
+
+    visited.add(currentId);
+    pathIds.unshift(current._id);
+
+    if (!current.parentDirId) break;
+
+    current = await Directory.findOne(
+      { _id: current.parentDirId, userId },
+      { _id: 1, parentDirId: 1 },
+    ).lean();
+  }
+
+  return pathIds;
+}
+
 export const getDirectory = async (req, res) => {
   const { rootDirId } = req.user;
   const id = req.params.id || rootDirId;
 
   // Find the directory and verify ownership
-  const directoryData = await Directory.findById(id).lean();
+  const directoryData = await Directory.findOne({
+    _id: id,
+    userId: req.user._id,
+  }).lean();
   if (!directoryData) {
     return res
       .status(404)
       .json({ error: "Directory not found or you do not have access to it!" });
   }
 
+  const pathIds =
+    Array.isArray(directoryData.path) && directoryData.path.length > 0
+      ? directoryData.path
+      : await buildLegacyPathIds(directoryData, req.user._id);
+
+  const pathDirectories =
+    pathIds.length > 0
+      ? await Directory.find(
+          { _id: { $in: pathIds }, userId: req.user._id },
+          { _id: 1, name: 1 },
+        ).lean()
+      : [];
+
+  const pathNameById = new Map(
+    pathDirectories.map((dir) => [dir._id.toString(), dir.name]),
+  );
+
+  const rootIdString = rootDirId?.toString();
+  const breadcrumbTrail = [{ id: null, name: "All Files" }];
+
+  pathIds.forEach((pathId) => {
+    const pathIdString = pathId.toString();
+    if (pathIdString === rootIdString) return;
+
+    const name = pathNameById.get(pathIdString);
+    if (name) {
+      breadcrumbTrail.push({ id: pathIdString, name });
+    }
+  });
+
   const files = await File.find({
     parentDirId: new ObjectId(id),
+    userId: req.user._id,
     isTrashed: false,
   }).lean();
   const directories = await Directory.find({
     parentDirId: new ObjectId(id),
+    userId: req.user._id,
     isTrashed: false,
   }).lean();
 
   return res.status(200).json({
     ...directoryData,
+    breadcrumbTrail,
     files: files.map((file) => ({ ...file, id: file._id })),
     directories: directories.map((dir) => ({ ...dir, id: dir._id })),
   });
@@ -53,6 +112,7 @@ export const createDirectory = async (req, res, next) => {
   try {
     const parentDir = await Directory.findOne({
       _id: new ObjectId(parentDirId),
+      userId: user._id,
     }).lean();
 
     if (!parentDir)
@@ -60,9 +120,17 @@ export const createDirectory = async (req, res, next) => {
         .status(404)
         .json({ message: "Parent Directory Does not exist!" });
 
+    const newDirId = new ObjectId();
+    const parentPath =
+      Array.isArray(parentDir.path) && parentDir.path.length > 0
+        ? parentDir.path
+        : [parentDir._id];
+
     await Directory.insertOne({
+      _id: newDirId,
       name: dirname,
       parentDirId: new ObjectId(parentDirId),
+      path: [...parentPath, newDirId],
       userId: user._id,
     });
 

@@ -93,6 +93,12 @@ try {
           parentDirId: {
             bsonType: ["objectId", "null"],
           },
+          path: {
+            bsonType: "array",
+            items: {
+              bsonType: "objectId",
+            },
+          },
           userId: {
             bsonType: "objectId",
           },

@@ -19,7 +19,6 @@ function DirectoryView() {
   const [breadcrumbTrail, setBreadcrumbTrail] = useState([
     { id: null, name: "All Files" },
   ]);
-  const dirCacheRef = useRef({}); // cache: id -> { name, parentDirId }
 
   // Lists of items
   const [directoriesList, setDirectoriesList] = useState([]);
@@ -74,43 +73,6 @@ function DirectoryView() {
   }
 
   /**
-   * Fetch a single directory's info (with caching)
-   */
-  async function fetchDirInfo(id) {
-    if (dirCacheRef.current[id]) return dirCacheRef.current[id];
-    const res = await fetch(`${BASE_URL}/directory/${id}`, {
-      credentials: "include",
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const info = { name: data.name, parentDirId: data.parentDirId };
-    dirCacheRef.current[id] = info;
-    return info;
-  }
-
-  /**
-   * Build breadcrumb trail by walking up parentDirId
-   */
-  async function buildBreadcrumbTrail(currentId, currentName) {
-    const trail = [{ id: currentId, name: currentName }];
-    let parentId = dirCacheRef.current[currentId]?.parentDirId ?? null;
-
-    while (parentId) {
-      const parentInfo = await fetchDirInfo(parentId);
-      if (!parentInfo) break;
-      // If this parent is the root dir (no parent itself), skip it —
-      // the "All Files" entry represents the root.
-      if (!parentInfo.parentDirId) break;
-      trail.unshift({ id: parentId, name: parentInfo.name });
-      parentId = parentInfo.parentDirId;
-    }
-
-    // Prepend root
-    trail.unshift({ id: null, name: "All Files" });
-    setBreadcrumbTrail(trail);
-  }
-
-  /**
    * Fetch directory contents
    */
   async function getDirectoryItems() {
@@ -131,20 +93,11 @@ function DirectoryView() {
       // Set directory name
       setDirectoryName(dirId ? data.name : "My Drive");
 
-      // Cache current directory info
-      if (dirId) {
-        dirCacheRef.current[dirId] = {
-          name: data.name,
-          parentDirId: data.parentDirId,
-        };
-      }
-
-      // Build breadcrumb
-      if (dirId) {
-        buildBreadcrumbTrail(dirId, data.name);
-      } else {
-        setBreadcrumbTrail([{ id: null, name: "All Files" }]);
-      }
+      setBreadcrumbTrail(
+        Array.isArray(data.breadcrumbTrail) && data.breadcrumbTrail.length > 0
+          ? data.breadcrumbTrail
+          : [{ id: null, name: "All Files" }],
+      );
 
       // Reverse directories and files so new items show on top
       setDirectoriesList([...data.directories].reverse());
@@ -480,9 +433,29 @@ function DirectoryView() {
   }, []);
 
   // Combine directories & files into one list for rendering
+  const currentPathParts = breadcrumbTrail
+    .slice(1)
+    .map((entry) => entry.name)
+    .filter(Boolean);
+  const currentPath =
+    currentPathParts.length > 0 ? `/${currentPathParts.join("/")}` : "/";
+
+  function buildItemPath(name) {
+    if (!name) return currentPath;
+    return currentPath === "/" ? `/${name}` : `${currentPath}/${name}`;
+  }
+
   const combinedItems = [
-    ...directoriesList.map((d) => ({ ...d, isDirectory: true })),
-    ...filesList.map((f) => ({ ...f, isDirectory: false })),
+    ...directoriesList.map((d) => ({
+      ...d,
+      isDirectory: true,
+      pathDisplay: buildItemPath(d.name),
+    })),
+    ...filesList.map((f) => ({
+      ...f,
+      isDirectory: false,
+      pathDisplay: buildItemPath(f.name),
+    })),
   ];
 
   const isAccessError =

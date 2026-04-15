@@ -2,6 +2,9 @@ import React from "react";
 
 function DetailsModal({ item, onClose }) {
   if (!item) return null;
+
+  const resolvedPath = item.pathDisplay || "/";
+
   const formatSize = (bytes = 0) => {
     const KB = 1024;
     const MB = KB * 1024;
@@ -31,7 +34,7 @@ function DetailsModal({ item, onClose }) {
             <strong>Name:</strong> {item.name}
           </div>
           <div>
-            <strong>Path:</strong> /
+            <strong>Path:</strong> {resolvedPath}
           </div>
           <div>
             <strong>Size:</strong> {formatSize(item.size)}
