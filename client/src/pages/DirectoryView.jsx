@@ -28,6 +28,14 @@ function DirectoryView() {
   // Error state
   const [errorMessage, setErrorMessage] = useState("");
 
+  // User + storage state for sidebar
+  const [sidebarUser, setSidebarUser] = useState({
+    role: null,
+    usedStorage: 0,
+    maxStorage: 0,
+  });
+  const [storageLoading, setStorageLoading] = useState(true);
+
   // Modal states
   const [showCreateDirModal, setShowCreateDirModal] = useState(false);
   const [newDirname, setNewDirname] = useState("New Folder");
@@ -146,8 +154,38 @@ function DirectoryView() {
     }
   }
 
+  async function getUserStorageInfo() {
+    setStorageLoading(true);
+    try {
+      const response = await fetch(`${BASE_URL}/user`, {
+        credentials: "include",
+      });
+
+      if (response.status === 401) {
+        navigate("/login");
+        return;
+      }
+
+      if (!response.ok) {
+        return;
+      }
+
+      const user = await response.json();
+      setSidebarUser({
+        role: user.role || null,
+        usedStorage: Number(user.usedStorage) || 0,
+        maxStorage: Number(user.maxStorage) || 0,
+      });
+    } catch (_) {
+      // Keep sidebar with safe fallback values if user fetch fails.
+    } finally {
+      setStorageLoading(false);
+    }
+  }
+
   useEffect(() => {
     getDirectoryItems();
+    getUserStorageInfo();
     // Reset context menu
     setActiveContextMenu(null);
   }, [dirId]);
@@ -251,6 +289,7 @@ function DirectoryView() {
       setUploadQueue([]);
       setTimeout(() => {
         getDirectoryItems();
+        getUserStorageInfo();
       }, 1000);
       return;
     }
@@ -329,6 +368,7 @@ function DirectoryView() {
       });
       await handleFetchErrors(response);
       getDirectoryItems();
+      getUserStorageInfo();
     } catch (error) {
       setErrorMessage(error.message);
     }
@@ -343,6 +383,7 @@ function DirectoryView() {
       });
       await handleFetchErrors(response);
       getDirectoryItems();
+      getUserStorageInfo();
     } catch (error) {
       setErrorMessage(error.message);
     }
@@ -454,6 +495,10 @@ function DirectoryView() {
         onCreateFolderClick={() => setShowCreateDirModal(true)}
         onUploadFilesClick={() => fileInputRef.current.click()}
         disabled={isAccessError}
+        role={sidebarUser.role}
+        usedStorage={sidebarUser.usedStorage}
+        maxStorage={sidebarUser.maxStorage}
+        storageLoading={storageLoading}
       />
 
       {/* Main Content */}

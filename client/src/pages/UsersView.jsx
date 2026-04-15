@@ -129,7 +129,7 @@ function UsersView() {
 
   return (
     <div className="app-container">
-      <Sidebar disabled={false} />
+      <Sidebar disabled={false} role={userRole || null} />
       <main className="main-content">
         <TopBar searchPlaceholder="Search users..." hideUpload={true} />
 

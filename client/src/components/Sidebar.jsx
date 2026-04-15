@@ -1,33 +1,36 @@
-import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 function Sidebar({
   onCreateFolderClick,
   onUploadFilesClick,
   disabled = false,
+  role = null,
+  usedStorage = 0,
+  maxStorage = 0,
+  storageLoading = false,
 }) {
   const location = useLocation();
   const pathname = location.pathname;
-  const [data, setData] = useState([]);
 
-  useEffect(() => {
-    fetchUser();
-  }, []);
+  function formatBytes(bytes) {
+    if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    let value = bytes;
+    let unitIndex = 0;
 
-  async function fetchUser() {
-    try {
-      const response = await fetch("http://localhost:4000/user", {
-        credentials: "include",
-      });
-      if (response.status === 403 || response.status === 401) {
-        return;
-      }
-      const data = await response.json();
-      setData(data);
-    } catch (error) {
-      console.log(error);
+    while (value >= 1024 && unitIndex < units.length - 1) {
+      value /= 1024;
+      unitIndex += 1;
     }
+
+    const rounded = value >= 100 ? value.toFixed(0) : value.toFixed(1);
+    return `${rounded} ${units[unitIndex]}`;
   }
+
+  const safeUsed = Number.isFinite(usedStorage) ? usedStorage : 0;
+  const safeMax = Number.isFinite(maxStorage) ? maxStorage : 0;
+  const usagePercent = safeMax > 0 ? Math.min((safeUsed / safeMax) * 100, 100) : 0;
+  const canManageUsers = Boolean(role) && role !== "user";
 
   return (
     <div className="sidebar">
@@ -137,7 +140,7 @@ function Sidebar({
           </svg>
           Starred
         </a>
-        {data.role !== "user" && (
+        {canManageUsers && (
           <Link
             to="/users"
             className={`nav-item ${pathname === "/users" ? "active" : ""}`}
@@ -158,22 +161,7 @@ function Sidebar({
             Users
           </Link>
         )}
-        <a href="#" className="nav-item">
-          <svg
-            className="nav-icon"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          Recent
-        </a>
+        
         <Link
           to="/trash"
           className={`nav-item ${pathname === "/trash" ? "active" : ""}`}
@@ -200,11 +188,11 @@ function Sidebar({
         <div className="storage-aura"></div>
         <div className="storage-title">Storage</div>
         <div className="storage-bar">
-          <div className="storage-fill"></div>
+          <div className="storage-fill" style={{ width: `${usagePercent}%` }}></div>
         </div>
         <div className="storage-meta">
-          <span>750 GB Used</span>
-          <span>1 TB</span>
+          <span>{storageLoading ? "Loading..." : `${formatBytes(safeUsed)} Used`}</span>
+          <span>{storageLoading ? "--" : formatBytes(safeMax)}</span>
         </div>
       </div>
     </div>

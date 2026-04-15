@@ -29,6 +29,9 @@ try {
             description: "please enter a valid email",
             pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+.[a-zA-Z]{2,}$",
           },
+          maxStorageInBytes: {
+            bsonType: "long",
+          },
           password: {
             bsonType: "string",
             minLength: 4,
@@ -75,7 +78,6 @@ try {
           "parentDirId",
           "userId",
           "isTrashed",
-
           "trashedAt",
         ],
         properties: {

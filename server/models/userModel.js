@@ -16,6 +16,11 @@ const userSchema = new Schema({
     minLength: 4,
     required: true,
   },
+  maxStorageInBytes: {
+    type: Number,
+    required: true,
+    default: 1 * 1024 ** 3,
+  },
   password: {
     type: String,
     minLength: 6,
