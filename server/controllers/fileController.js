@@ -263,3 +263,8 @@ export const permanentlyDeleteFile = async (req, res, next) => {
     next(err);
   }
 };
+
+export const uploadInitiate = (req, res) => {
+  console.log(req.body);
+  res.json({ uploadUrl: "testUrl" });
+};

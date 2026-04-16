@@ -9,12 +9,15 @@ import {
   trashFile,
   restoreFile,
   permanentlyDeleteFile,
+  uploadInitiate,
 } from "../controllers/fileController.js";
 
 const router = express.Router();
 
 router.param("parentDirId", validateIdMiddleware);
 router.param("id", validateIdMiddleware);
+
+router.post("/upload/initiate", uploadInitiate);
 
 router.post("/:parentDirId?", uploadFile);
 
