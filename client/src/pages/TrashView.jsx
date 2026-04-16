@@ -2,9 +2,12 @@ import { useState, useEffect } from "react";
 import TopBar from "../components/TopBar";
 import Sidebar from "../components/Sidebar";
 import TrashContextMenu from "../components/TrashContextMenu";
-
-// Setup base URL
-const BASE_URL = "http://localhost:4000";
+import {
+  emptyTrash,
+  getTrashItems,
+  permanentlyDeleteTrashItem,
+  restoreTrashItem,
+} from "../apis/trashApi";
 
 function TrashView() {
   const [items, setItems] = useState([]);
@@ -17,11 +20,7 @@ function TrashView() {
   const fetchTrashItems = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch(`${BASE_URL}/trash`, {
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to fetch trash items");
-      const data = await res.json();
+      const data = await getTrashItems();
 
       const { directories, files } = data;
 
@@ -74,12 +73,7 @@ function TrashView() {
   // --- Actions ---
   const handleRestore = async (type, id) => {
     try {
-      const endpoint = type === "directory" ? "directory" : "file";
-      const res = await fetch(`${BASE_URL}/${endpoint}/${id}/restore`, {
-        method: "PATCH",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to restore item");
+      await restoreTrashItem(type, id);
 
       // Remove item from UI
       setItems((prev) => prev.filter((item) => item.id !== id));
@@ -91,12 +85,7 @@ function TrashView() {
 
   const handlePermanentlyDelete = async (type, id) => {
     try {
-      const endpoint = type === "directory" ? "directory" : "file";
-      const res = await fetch(`${BASE_URL}/${endpoint}/${id}/permanent`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to permanently delete item");
+      await permanentlyDeleteTrashItem(type, id);
 
       // Remove item from UI
       setItems((prev) => prev.filter((item) => item.id !== id));
@@ -116,11 +105,7 @@ function TrashView() {
     }
 
     try {
-      const res = await fetch(`${BASE_URL}/trash`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to empty trash");
+      await emptyTrash();
       setItems([]);
     } catch (error) {
       console.error("Error emptying trash", error);
