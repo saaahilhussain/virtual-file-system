@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import TopBar from "../components/TopBar";
 import { useNavigate } from "react-router-dom";
+import { fetchUser, fetchAllUsers } from "../apis/userApi";
 
 function UsersView() {
   const [users, setUsers] = useState([]);
@@ -25,47 +26,34 @@ function UsersView() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchAllUsers();
-    fetchUser();
+    handleFetchAllUsers();
+    handleFetchUser();
   }, []);
 
-  async function fetchAllUsers() {
+  async function handleFetchAllUsers() {
     try {
-      const res = await fetch(`http://localhost:4000/users`, {
-        credentials: "include",
-      });
-      if (res.status === 403) {
-        navigate("/app");
-      } else if (!res.ok) {
-        console.log("Error finding users");
-      }
-
-      const data = await res.json();
+      const data = await fetchAllUsers();
       setUsers(data);
     } catch (error) {
-      console.log(error.message);
+      if (error.message === "Forbidden") {
+        navigate("/app");
+      } else {
+        console.log("Error finding users:", error.message);
+      }
     }
   }
 
-  async function fetchUser() {
+  async function handleFetchUser() {
     try {
-      const response = await fetch(`http://localhost:4000/user`, {
-        credentials: "include",
-      });
-      if (response.ok) {
-        const data = await response.json();
-        // Set user info if logged in
-        setUserName(data.name);
-        setUserRole(data.role);
-        // setUserPicture(data.picture);
-      } else if (response.status === 401) {
+      const data = await fetchUser();
+      setUserName(data.name);
+      setUserRole(data.role);
+    } catch (error) {
+      if (error.message === "Unauthorized") {
         navigate("/app");
       } else {
-        // Handle other error statuses if needed
-        console.error("Error fetching user info:", response.status);
+        console.error("Error fetching user info:", error.message);
       }
-    } catch (err) {
-      console.error("Error fetching user info:", err);
     }
   }
 

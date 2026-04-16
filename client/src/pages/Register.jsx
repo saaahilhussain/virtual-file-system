@@ -5,10 +5,10 @@ import { loginWithGoogle } from "../apis/loginWithGoogle";
 import PreAuthHeader from "../components/PreAuthHeader";
 import { GithubLogin } from "../components/GithubLogin";
 import { loginWithGithub } from "../apis/loginWithGithub";
+import { sendOtp, verifyOtp } from "../apis/authApi";
+import { registerUser } from "../apis/userApi";
 
 const Register = () => {
-  const BASE_URL = "http://localhost:4000";
-
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -69,30 +69,21 @@ const Register = () => {
 
     try {
       setIsSending(true);
-      const res = await fetch(`${BASE_URL}/auth/send-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        setOtpSent(true);
-        setCountdown(60); // allow resend after 60s
-        setServerError("");
-        setOtpError("");
-      } else {
-        if (data.error && data.error.toLowerCase().includes("email")) {
-          setServerError(data.error);
-          setOtpError("");
-        } else {
-          setOtpError(data.error || "Failed to send OTP.");
-          setServerError("");
-        }
-      }
+      await sendOtp(email);
+      setOtpSent(true);
+      setCountdown(60); // allow resend after 60s
+      setServerError("");
+      setOtpError("");
     } catch (err) {
       console.error(err);
-      setOtpError("Something went wrong sending OTP.");
+      const errorMsg = err.message;
+      if (errorMsg && errorMsg.toLowerCase().includes("email")) {
+        setServerError(errorMsg);
+        setOtpError("");
+      } else {
+        setOtpError(errorMsg || "Failed to send OTP.");
+        setServerError("");
+      }
     } finally {
       setIsSending(false);
     }
@@ -108,23 +99,13 @@ const Register = () => {
 
     try {
       setIsVerifying(true);
-      const res = await fetch(`${BASE_URL}/auth/verify-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp }),
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        setOtpVerified(true);
-        setOtpError("");
-        setCountdown(0);
-      } else {
-        setOtpError(data.error || "Invalid or expired OTP.");
-      }
+      await verifyOtp(email, otp);
+      setOtpVerified(true);
+      setOtpError("");
+      setCountdown(0);
     } catch (err) {
       console.error(err);
-      setOtpError("Something went wrong verifying OTP.");
+      setOtpError(err.message || "Invalid or expired OTP.");
     } finally {
       setIsVerifying(false);
     }
@@ -142,22 +123,14 @@ const Register = () => {
     }
 
     try {
-      const response = await fetch(`${BASE_URL}/user/register`, {
-        method: "POST",
-        body: JSON.stringify(formData),
-        headers: { "Content-Type": "application/json" },
-      });
-      const data = await response.json();
-
-      if (data.error) {
-        setServerError(data.error);
-      } else {
-        setIsSuccess(true);
-        setTimeout(() => navigate("/app"), 2000);
-      }
+      await registerUser(formData);
+      setIsSuccess(true);
+      setTimeout(() => navigate("/app"), 2000);
     } catch (error) {
       console.error(error);
-      setServerError("Something went wrong. Please try again.");
+      setServerError(
+        error.message || "Something went wrong. Please try again.",
+      );
     }
   };
 

@@ -5,10 +5,9 @@ import { loginWithGoogle } from "../apis/loginWithGoogle";
 import PreAuthHeader from "../components/PreAuthHeader";
 import { GithubLogin } from "../components/GithubLogin";
 import { loginWithGithub } from "../apis/loginWithGithub";
+import { loginUser } from "../apis/userApi";
 
 const Login = () => {
-  const BASE_URL = "http://localhost:4000";
-
   const [formData, setFormData] = useState({
     email: "sahilhussainofficial@gmail.com",
     password: "sahil123",
@@ -37,26 +36,13 @@ const Login = () => {
     e.preventDefault();
 
     try {
-      const response = await fetch(`${BASE_URL}/user/login`, {
-        method: "POST",
-        body: JSON.stringify(formData),
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-      });
-
-      const data = await response.json();
-      if (data.error) {
-        // If there's an error, set the serverError message
-        setServerError(data.error);
-      } else {
-        // On success, navigate to home or any other protected route
-        navigate("/app");
-      }
+      await loginUser(formData);
+      navigate("/app");
     } catch (error) {
       console.error("Error:", error);
-      setServerError("Something went wrong. Please try again.");
+      setServerError(
+        error.message || "Something went wrong. Please try again.",
+      );
     }
   };
 

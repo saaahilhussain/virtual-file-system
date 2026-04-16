@@ -6,13 +6,20 @@ import CreateDirectoryModal from "../components/CreateDirectoryModal";
 import RenameModal from "../components/RenameModal";
 import DirectoryList from "../components/DirectoryList";
 import Breadcrumb from "../components/Breadcrumb";
+import {
+  getDirectoryItems,
+  createDirectory,
+  renameDirectory,
+  deleteDirectory,
+} from "../apis/directoryApi";
+import { deleteFile, renameFile } from "../apis/fileApi";
+import { fetchUser } from "../apis/userApi";
 
 function DirectoryView() {
   const BASE_URL = import.meta.env.VITE_BACKEND_BASE_URI;
   const { dirId } = useParams();
   const navigate = useNavigate();
 
-  // Displayed directory name
   const [directoryName, setDirectoryName] = useState("My Drive");
 
   // Breadcrumb trail
@@ -55,39 +62,12 @@ function DirectoryView() {
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
 
   /**
-   * Utility: handle fetch errors
-   */
-  async function handleFetchErrors(response) {
-    if (!response.ok) {
-      let errMsg = `Request failed with status ${response.status}`;
-      try {
-        const data = await response.json();
-        if (data.error) errMsg = data.error;
-      } catch (_) {
-        // If JSON parsing fails, default errMsg stays
-      }
-      throw new Error(errMsg);
-    }
-    return response;
-  }
-
-  /**
    * Fetch directory contents
    */
-  async function getDirectoryItems() {
+  async function getDirectoryItemsHandler() {
     setErrorMessage(""); // clear any existing error
     try {
-      const response = await fetch(`${BASE_URL}/directory/${dirId || ""}`, {
-        credentials: "include",
-      });
-
-      if (response.status === 401) {
-        navigate("/login");
-        return;
-      }
-
-      await handleFetchErrors(response);
-      const data = await response.json();
+      const data = await getDirectoryItems(dirId);
 
       // Set directory name
       setDirectoryName(dirId ? data.name : "My Drive");
@@ -102,33 +82,27 @@ function DirectoryView() {
       setDirectoriesList([...data.directories].reverse());
       setFilesList([...data.files].reverse());
     } catch (error) {
-      setErrorMessage(error.message);
+      if (error.message === "Unauthorized") {
+        navigate("/login");
+      } else {
+        setErrorMessage(error.message);
+      }
     }
   }
 
   async function getUserStorageInfo() {
     setStorageLoading(true);
     try {
-      const response = await fetch(`${BASE_URL}/user`, {
-        credentials: "include",
-      });
-
-      if (response.status === 401) {
-        navigate("/login");
-        return;
-      }
-
-      if (!response.ok) {
-        return;
-      }
-
-      const user = await response.json();
+      const user = await fetchUser();
       setSidebarUser({
         role: user.role || null,
         usedStorage: Number(user.usedStorage) || 0,
         maxStorage: Number(user.maxStorage) || 0,
       });
-    } catch (_) {
+    } catch (error) {
+      if (error.message === "Unauthorized") {
+        navigate("/login");
+      }
       // Keep sidebar with safe fallback values if user fetch fails.
     } finally {
       setStorageLoading(false);
@@ -136,7 +110,7 @@ function DirectoryView() {
   }
 
   useEffect(() => {
-    getDirectoryItems();
+    getDirectoryItemsHandler();
     getUserStorageInfo();
     // Reset context menu
     setActiveContextMenu(null);
@@ -185,7 +159,7 @@ function DirectoryView() {
     if (type === "directory") {
       navigate(`/app/directory/${id}`);
     } else {
-      window.location.href = `${BASE_URL}/file/${id}`;
+      window.location.href = `${import.meta.env.VITE_BACKEND_BASE_URI}/file/${id}`;
     }
   }
 
@@ -235,7 +209,11 @@ function DirectoryView() {
 
     // Start upload
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", `${BASE_URL}/file/${dirId || ""}`, true);
+    xhr.open(
+      "POST",
+      `${import.meta.env.VITE_BACKEND_BASE_URI}/file/${dirId || ""}`,
+      true,
+    );
     xhr.withCredentials = true;
     xhr.setRequestHeader("filename", item.name);
     xhr.setRequestHeader("filesize", item.size);
@@ -251,7 +229,7 @@ function DirectoryView() {
       // Upload complete
       setIsUploading(false);
       setTimeout(() => {
-        getDirectoryItems();
+        getDirectoryItemsHandler();
         getUserStorageInfo();
       }, 1000);
     });
@@ -279,7 +257,7 @@ function DirectoryView() {
       return rest;
     });
 
-    // Remove from Xhr map
+    // Remove from upload map
     setUploadXhrMap((prev) => {
       const copy = { ...prev };
       delete copy[tempId];
@@ -296,12 +274,8 @@ function DirectoryView() {
   async function handleDeleteFile(id) {
     setErrorMessage("");
     try {
-      const response = await fetch(`${BASE_URL}/file/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      await handleFetchErrors(response);
-      getDirectoryItems();
+      await deleteFile(id);
+      getDirectoryItemsHandler();
       getUserStorageInfo();
     } catch (error) {
       setErrorMessage(error.message);
@@ -311,12 +285,8 @@ function DirectoryView() {
   async function handleDeleteDirectory(id) {
     setErrorMessage("");
     try {
-      const response = await fetch(`${BASE_URL}/directory/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      await handleFetchErrors(response);
-      getDirectoryItems();
+      await deleteDirectory(id);
+      getDirectoryItemsHandler();
       getUserStorageInfo();
     } catch (error) {
       setErrorMessage(error.message);
@@ -330,17 +300,10 @@ function DirectoryView() {
     e.preventDefault();
     setErrorMessage("");
     try {
-      const response = await fetch(`${BASE_URL}/directory/${dirId || ""}`, {
-        method: "POST",
-        headers: {
-          dirname: newDirname,
-        },
-        credentials: "include",
-      });
-      await handleFetchErrors(response);
+      await createDirectory(dirId || "", newDirname);
       setNewDirname("New Folder");
       setShowCreateDirModal(false);
-      getDirectoryItems();
+      getDirectoryItemsHandler();
     } catch (error) {
       setErrorMessage(error.message);
     }
@@ -360,29 +323,17 @@ function DirectoryView() {
     e.preventDefault();
     setErrorMessage("");
     try {
-      const url =
-        renameType === "file"
-          ? `${BASE_URL}/file/${renameId}`
-          : `${BASE_URL}/directory/${renameId}`;
-      const response = await fetch(url, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(
-          renameType === "file"
-            ? { newFilename: renameValue }
-            : { newDirName: renameValue },
-        ),
-        credentials: "include",
-      });
-      await handleFetchErrors(response);
+      if (renameType === "file") {
+        await renameFile(renameId, renameValue);
+      } else {
+        await renameDirectory(renameId, renameValue);
+      }
 
       setShowRenameModal(false);
       setRenameValue("");
       setRenameType(null);
       setRenameId(null);
-      getDirectoryItems();
+      getDirectoryItemsHandler();
     } catch (error) {
       setErrorMessage(error.message);
     }
