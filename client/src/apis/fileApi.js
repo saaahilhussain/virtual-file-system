@@ -50,3 +50,23 @@ export async function renameFile(id, newFilename) {
 
   return data;
 }
+
+/**
+ * Get signed url from s3
+ */
+
+export async function uploadInitiate(file) {
+  const response = await fetch(`${BASE_URL}/file/upload/initiate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(file),
+    credentials: "include",
+  });
+
+  await handleFetchErrors(response);
+  const data = await response.json();
+
+  return data;
+}

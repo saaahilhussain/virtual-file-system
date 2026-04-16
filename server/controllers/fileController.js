@@ -3,6 +3,8 @@ import { rm } from "fs/promises";
 import path from "path";
 import Directory from "../models/directoryModel.js";
 import File from "../models/fileModel.js";
+import User from "../models/userModel.js";
+import { createSignedUploadUrl } from "../services/s3Service.js";
 
 async function updateAncestorSizes(startParentId, delta) {
   if (!startParentId || !Number.isFinite(delta) || delta === 0) return;
@@ -22,16 +24,6 @@ export const uploadFile = async (req, res, next) => {
   const parentDirId = req.params.parentDirId || req.user.rootDirId;
 
   try {
-    const parentDirData = await Directory.findOne({
-      _id: parentDirId,
-      userId: req.user._id,
-    });
-
-    // Check if parent directory exists
-    if (!parentDirData) {
-      return res.status(404).json({ error: "Parent directory not found!" });
-    }
-
     const filename = req.headers.filename || "untitled";
     const filesize = req.headers.filesize;
     const fileSizeInBytes = Number(filesize);
@@ -40,8 +32,33 @@ export const uploadFile = async (req, res, next) => {
       return res.status(400).json({ error: "Invalid file size" });
     }
 
-    // size check
-    if (fileSizeInBytes > 100 * 1024 * 1024) {
+    const parentDirData = await Directory.findOne({
+      _id: parentDirId,
+      userId: req.user._id,
+    });
+    // Check if parent directory exists
+    if (!parentDirData) {
+      return res.status(404).json({ error: "Parent directory not found!" });
+    }
+
+    // from user, only get the max storage
+    const user = await User.findById(req.user._id, {
+      maxStorageInBytes: 1,
+    }).lean();
+    if (!user) {
+      return res.status(404).json({ error: "User not found!" });
+    }
+
+    const rootDirectory = await Directory.findOne(
+      { _id: req.user.rootDirId, userId: req.user._id },
+      { size: 1 },
+    ).lean();
+
+    const maxStorage = Number(user.maxStorageInBytes) || 0;
+    const usedStorage = Number(rootDirectory?.size) || 0;
+    const remainingStorage = Math.max(0, maxStorage - usedStorage);
+
+    if (fileSizeInBytes > remainingStorage) {
       return res.destroy();
     }
 
@@ -264,7 +281,75 @@ export const permanentlyDeleteFile = async (req, res, next) => {
   }
 };
 
-export const uploadInitiate = (req, res) => {
-  console.log(req.body);
-  res.json({ uploadUrl: "testUrl" });
+export const uploadInitiate = async (req, res) => {
+  try {
+    const parentDirId = req.body.parentDirId || req.user.rootDirId;
+    const filename = req.body.name || "untitled";
+    const filesize = req.body.size;
+    const fileSizeInBytes = Number(filesize);
+
+    if (!Number.isFinite(fileSizeInBytes) || fileSizeInBytes < 0) {
+      return res.status(400).json({ error: "Invalid file size" });
+    }
+
+    const parentDirData = await Directory.findOne({
+      _id: parentDirId,
+      userId: req.user._id,
+    });
+    // Check if parent directory exists
+    if (!parentDirData) {
+      return res.status(404).json({ error: "Parent directory not found!" });
+    }
+
+    // from user, only get the max storage
+    const user = await User.findById(req.user._id, {
+      maxStorageInBytes: 1,
+    }).lean();
+    if (!user) {
+      return res.status(404).json({ error: "User not found!" });
+    }
+
+    // root directory has the *used* size
+    const rootDirectory = await Directory.findOne(
+      { _id: req.user.rootDirId, userId: req.user._id },
+      { size: 1 },
+    ).lean();
+
+    const maxStorage = Number(user.maxStorageInBytes) || 0;
+    const usedStorage = Number(rootDirectory?.size) || 0;
+    const remainingStorage = Math.max(0, maxStorage - usedStorage);
+
+    if (fileSizeInBytes > remainingStorage) {
+      console.log("File too large!!");
+      return res
+        .status(429)
+        .json({ error: "File exceeds the maximum upload limit." });
+    }
+
+    const extension = path.extname(filename);
+
+    const insertedFile = await File.insertOne({
+      extension,
+      name: filename,
+      size: fileSizeInBytes,
+      parentDirId: parentDirData._id,
+      userId: req.user._id,
+      isTrashed: false,
+      trashedAt: null,
+    });
+
+    const fileId = insertedFile._id;
+
+    const uploadUrl = await createSignedUploadUrl({
+      Key: `${fileId}${extension}`,
+      ContentType: req.body.ContentType,
+    });
+
+    return res.status(201).json({
+      uploadUrl,
+      fileId,
+    });
+  } catch (err) {
+    console.log(err);
+  }
 };

@@ -12,7 +12,7 @@ import {
   renameDirectory,
   deleteDirectory,
 } from "../apis/directoryApi";
-import { deleteFile, renameFile } from "../apis/fileApi";
+import { deleteFile, renameFile, uploadInitiate } from "../apis/fileApi";
 import { fetchUser } from "../apis/userApi";
 
 function DirectoryView() {
@@ -166,7 +166,7 @@ function DirectoryView() {
   /**
    * Select a file and start upload
    */
-  function handleFileSelect(e) {
+  async function handleFileSelect(e) {
     const file = e.target.files?.[0];
 
     if (!file) return;
@@ -186,6 +186,13 @@ function DirectoryView() {
       id: `temp-${Date.now()}-${Math.random()}`,
       isUploading: false,
     };
+
+    const data = await uploadInitiate({
+      name: file.name,
+      size: file.size,
+      contentType: file.type,
+      parentDirId: dirId,
+    });
 
     // Add it to the top of the existing list
     setFilesList((prev) => [tempItem, ...prev]);
