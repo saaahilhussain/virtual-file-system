@@ -68,5 +68,6 @@ export async function uploadInitiate(file) {
   await handleFetchErrors(response);
   const data = await response.json();
 
-  return data;
+  const { uploadUrl } = data;
+  return uploadUrl;
 }

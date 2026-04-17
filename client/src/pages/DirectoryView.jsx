@@ -187,12 +187,14 @@ function DirectoryView() {
       isUploading: false,
     };
 
-    const data = await uploadInitiate({
+    const uploadUrl = await uploadInitiate({
       name: file.name,
       size: file.size,
       contentType: file.type,
       parentDirId: dirId,
     });
+
+    // const { uploadUrl } = data;
 
     // Add it to the top of the existing list
     setFilesList((prev) => [tempItem, ...prev]);
@@ -202,13 +204,13 @@ function DirectoryView() {
 
     // Start uploading
     setIsUploading(true);
-    uploadSingleFile(tempItem);
+    startFileUpload(tempItem, uploadUrl);
   }
 
   /**
    * Upload a single file
    */
-  function uploadSingleFile(item) {
+  function startFileUpload(item, uploadUrl) {
     // Mark it as isUploading: true
     setFilesList((prev) =>
       prev.map((f) => (f.id === item.id ? { ...f, isUploading: true } : f)),
@@ -217,13 +219,14 @@ function DirectoryView() {
     // Start upload
     const xhr = new XMLHttpRequest();
     xhr.open(
-      "POST",
-      `${import.meta.env.VITE_BACKEND_BASE_URI}/file/${dirId || ""}`,
-      true,
+      "PUT",
+      // `${import.meta.env.VITE_BACKEND_BASE_URI}/file/${dirId || ""}`,
+      uploadUrl,
+      // true,
     );
-    xhr.withCredentials = true;
-    xhr.setRequestHeader("filename", item.name);
-    xhr.setRequestHeader("filesize", item.size);
+    // xhr.withCredentials = true;
+    // xhr.setRequestHeader("filename", item.name);
+    // xhr.setRequestHeader("filesize", item.size);
 
     xhr.upload.addEventListener("progress", (evt) => {
       if (evt.lengthComputable) {

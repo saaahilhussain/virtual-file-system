@@ -347,7 +347,6 @@ export const uploadInitiate = async (req, res) => {
 
     return res.status(201).json({
       uploadUrl,
-      fileId,
     });
   } catch (err) {
     console.log(err);
