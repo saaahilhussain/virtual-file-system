@@ -4,7 +4,10 @@ import path from "path";
 import Directory from "../models/directoryModel.js";
 import File from "../models/fileModel.js";
 import User from "../models/userModel.js";
-import { createSignedUploadUrl } from "../services/s3Service.js";
+import {
+  createSignedGetUrl,
+  createSignedUploadUrl,
+} from "../services/s3Service.js";
 
 async function updateAncestorSizes(startParentId, delta) {
   if (!startParentId || !Number.isFinite(delta) || delta === 0) return;
@@ -152,29 +155,24 @@ export const uploadFile = async (req, res, next) => {
 
 export const getFile = async (req, res) => {
   const { id } = req.params;
+
   const fileData = await File.findOne({
     _id: id,
     userId: req.user._id,
   });
-
   // Check if file exists
   if (!fileData) {
     return res.status(404).json({ error: "File not found!" });
   }
 
-  // If "download" is requested, set the appropriate headers
-  const filePath = `${process.cwd()}/storage/${id}${fileData.extension}`;
-
-  if (req.query.action === "download") {
-    return res.download(filePath, fileData.name);
-  }
-
-  // Send file
-  return res.sendFile(filePath, (err) => {
-    if (!res.headersSent && err) {
-      return res.status(404).json({ error: "File not found!" });
-    }
+  // if download, content-disposition is attachment, else inline
+  const fileUrl = await createSignedGetUrl({
+    Key: `${id}${fileData.extension}`,
+    download: req.query.action === "download", // else undefined
+    filename: fileData.name,
   });
+
+  return res.redirect(fileUrl);
 };
 
 export const renameFile = async (req, res, next) => {
