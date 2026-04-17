@@ -7,6 +7,7 @@ import User from "../models/userModel.js";
 import {
   createSignedGetUrl,
   createSignedUploadUrl,
+  getFileMetaData,
 } from "../services/s3Service.js";
 
 async function updateAncestorSizes(startParentId, delta) {
@@ -345,8 +346,62 @@ export const uploadInitiate = async (req, res) => {
 
     return res.status(201).json({
       uploadUrl,
+      fileId,
     });
   } catch (err) {
     console.log(err);
+  }
+};
+
+export const uploadComplete = async (req, res, next) => {
+  const file = await File.findById(req.body.fileId);
+  if (!file) {
+    return res.status(404).json({ error: "File not found!" });
+  }
+
+  try {
+    const fileData = await getFileMetaData(`${file.id}${file.extension}`);
+    if (fileData.ContentLength !== file.size) {
+      await file.deteleOne();
+      return res.status(404).json({ message: "File size does not match" });
+    }
+
+    await updateAncestorSizes(file.parentDirId, Number(file.size));
+    return res.json({ message: "Upload Complete" });
+  } catch (error) {
+    return res
+      .status(404)
+      .message({ error: "File could not be uploaded properly" });
+  }
+};
+
+export const uploadCancel = async (req, res, next) => {
+  const { fileId } = req.body;
+
+  if (!fileId) {
+    return res.status(400).json({ error: "fileId is required" });
+  }
+
+  try {
+    const file = await File.findOne({
+      _id: fileId,
+      userId: req.user._id,
+    });
+
+    if (!file) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    // Delete the file record
+    await File.deleteOne({ _id: fileId });
+
+    // Clean up from filesystem if it exists (for local uploads)
+    await rm(`./storage/${fileId}${file.extension}`, { recursive: true }).catch(
+      () => {},
+    );
+
+    return res.status(200).json({ message: "Upload cancelled" });
+  } catch (err) {
+    next(err);
   }
 };

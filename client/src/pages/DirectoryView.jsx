@@ -12,7 +12,13 @@ import {
   renameDirectory,
   deleteDirectory,
 } from "../apis/directoryApi";
-import { deleteFile, renameFile, uploadInitiate } from "../apis/fileApi";
+import {
+  deleteFile,
+  renameFile,
+  uploadComplete,
+  uploadInitiate,
+  uploadCancel,
+} from "../apis/fileApi";
 import { fetchUser } from "../apis/userApi";
 
 function DirectoryView() {
@@ -54,6 +60,7 @@ function DirectoryView() {
   // Uploading states
   const fileInputRef = useRef(null);
   const [uploadXhrMap, setUploadXhrMap] = useState({}); // track XHR per item
+  const [uploadFileIdMap, setUploadFileIdMap] = useState({}); // track tempId -> fileId mapping
   const [progressMap, setProgressMap] = useState({}); // track progress per item
   const [isUploading, setIsUploading] = useState(false); // indicates if an upload is in progress
 
@@ -178,39 +185,45 @@ function DirectoryView() {
       return;
     }
 
-    // Build a single temp item
-    const tempItem = {
-      file,
-      name: file.name,
-      size: file.size,
-      id: `temp-${Date.now()}-${Math.random()}`,
-      isUploading: false,
-    };
+    try {
+      // Build a single temp item
+      const tempItem = {
+        file,
+        name: file.name,
+        size: file.size,
+        id: `temp-${Date.now()}-${Math.random()}`,
+        isUploading: false,
+      };
 
-    const uploadUrl = await uploadInitiate({
-      name: file.name,
-      size: file.size,
-      contentType: file.type,
-      parentDirId: dirId,
-    });
+      const data = await uploadInitiate({
+        name: file.name,
+        size: file.size,
+        contentType: file.type,
+        parentDirId: dirId,
+      });
 
-    // const { uploadUrl } = data;
+      const { uploadUrl, fileId } = data;
 
-    // Add it to the top of the existing list
-    setFilesList((prev) => [tempItem, ...prev]);
+      // Add it to the top of the existing list
+      setFilesList((prev) => [tempItem, ...prev]);
 
-    // Clear file input so the same file can be chosen again if needed
-    e.target.value = "";
+      // Clear file input so the same file can be chosen again if needed
+      e.target.value = "";
 
-    // Start uploading
-    setIsUploading(true);
-    startFileUpload(tempItem, uploadUrl);
+      // Start uploading
+      setIsUploading(true);
+      startFileUpload(tempItem, uploadUrl, fileId);
+    } catch (error) {
+      setErrorMessage(error.message);
+      setTimeout(() => setErrorMessage(""), 3000);
+      e.target.value = "";
+    }
   }
 
   /**
    * Upload a single file
    */
-  function startFileUpload(item, uploadUrl) {
+  function startFileUpload(item, uploadUrl, fileId) {
     // Mark it as isUploading: true
     setFilesList((prev) =>
       prev.map((f) => (f.id === item.id ? { ...f, isUploading: true } : f)),
@@ -218,15 +231,7 @@ function DirectoryView() {
 
     // Start upload
     const xhr = new XMLHttpRequest();
-    xhr.open(
-      "PUT",
-      // `${import.meta.env.VITE_BACKEND_BASE_URI}/file/${dirId || ""}`,
-      uploadUrl,
-      // true,
-    );
-    // xhr.withCredentials = true;
-    // xhr.setRequestHeader("filename", item.name);
-    // xhr.setRequestHeader("filesize", item.size);
+    xhr.open("PUT", uploadUrl);
 
     xhr.upload.addEventListener("progress", (evt) => {
       if (evt.lengthComputable) {
@@ -235,9 +240,13 @@ function DirectoryView() {
       }
     });
 
-    xhr.addEventListener("load", () => {
+    xhr.addEventListener("load", async () => {
       // Upload complete
       setIsUploading(false);
+      if (xhr.status === 200) {
+        const data = await uploadComplete(fileId);
+        console.log(data);
+      }
       setTimeout(() => {
         getDirectoryItemsHandler();
         getUserStorageInfo();
@@ -246,6 +255,8 @@ function DirectoryView() {
 
     // Store XHR for potential cancellation
     setUploadXhrMap((prev) => ({ ...prev, [item.id]: xhr }));
+    // Store fileId mapping for cancellation
+    setUploadFileIdMap((prev) => ({ ...prev, [item.id]: fileId }));
     xhr.send(item.file);
   }
 
@@ -256,6 +267,14 @@ function DirectoryView() {
     const xhr = uploadXhrMap[tempId];
     if (xhr) {
       xhr.abort();
+    }
+
+    // Get the fileId and call cancel API
+    const fileId = uploadFileIdMap[tempId];
+    if (fileId) {
+      uploadCancel(fileId).catch((error) => {
+        console.error("Error cancelling upload:", error);
+      });
     }
 
     // Remove from filesList
@@ -269,6 +288,13 @@ function DirectoryView() {
 
     // Remove from upload map
     setUploadXhrMap((prev) => {
+      const copy = { ...prev };
+      delete copy[tempId];
+      return copy;
+    });
+
+    // Remove from fileId map
+    setUploadFileIdMap((prev) => {
       const copy = { ...prev };
       delete copy[tempId];
       return copy;

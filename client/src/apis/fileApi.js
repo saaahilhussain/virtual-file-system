@@ -68,6 +68,37 @@ export async function uploadInitiate(file) {
   await handleFetchErrors(response);
   const data = await response.json();
 
-  const { uploadUrl } = data;
-  return uploadUrl;
+  return data;
+}
+
+export async function uploadComplete(fileId) {
+  const response = await fetch(`${BASE_URL}/file/upload/complete`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ fileId }),
+    credentials: "include",
+  });
+
+  await handleFetchErrors(response);
+  const data = await response.json();
+
+  return data;
+}
+
+export async function uploadCancel(fileId) {
+  const response = await fetch(`${BASE_URL}/file/upload/cancel`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ fileId }),
+    credentials: "include",
+  });
+
+  await handleFetchErrors(response);
+  const data = await response.json();
+
+  return data;
 }
