@@ -156,35 +156,29 @@ export const uploadFile = async (req, res, next) => {
   }
 };
 
-export const getFile = async (req, res) => {
-  const { id } = req.params;
-
-  const fileData = await File.findOne({
-    _id: id,
-    userId: req.user._id,
-  });
-  // Check if file exists
-  if (!fileData) {
-    return res.status(404).json({ error: "File not found!" });
-  }
-
-  // // if download, content-disposition is attachment, else inline
-  // const fileUrl = await createSignedGetUrl({
-  //   Key: `${id}${fileData.extension}`,
-  //   download: req.query.action === "download", // else undefined
-  //   filename: fileData.name,
-  // });
-
+export const getFile = async (req, res, next) => {
   try {
+    const { id } = req.params;
+
+    const fileData = await File.findOne({
+      _id: id,
+      userId: req.user._id,
+    });
+
+    if (!fileData) {
+      return res.status(404).json({ error: "File not found!" });
+    }
+
     const fileUrl = createCloudFrontGetUrl({
       Key: `${id}${fileData.extension}`,
+      download: req.query.action === "download",
+      filename: fileData.name,
     });
-    return res.redirect(fileUrl);
-  } catch (error) {
-    console.log(error);
-  }
 
-  // return res.redirect(fileUrl);
+    return res.redirect(fileUrl);
+  } catch (err) {
+    return next(err);
+  }
 };
 
 export const renameFile = async (req, res, next) => {
