@@ -8,6 +8,7 @@ import {
   createSignedGetUrl,
   createSignedUploadUrl,
   getFileMetaData,
+  deleteS3File,
 } from "../services/s3Service.js";
 
 async function updateAncestorSizes(startParentId, delta) {
@@ -269,10 +270,12 @@ export const permanentlyDeleteFile = async (req, res, next) => {
     }
 
     await File.deleteOne({ _id: file._id });
-    // Remove file from filesystem
-    await rm(`./storage/${id}${file.extension}`, { recursive: true }).catch(
-      () => {},
-    );
+    // Remove file from s3 bucket
+    const response = await deleteS3File(`${file.id}${file.extension}`);
+    console.log(response);
+    // await rm(`./storage/${id}${file.extension}`, { recursive: true }).catch(
+    //   () => {},
+    // );
 
     return res.status(200).json({ message: "File Deleted Permanently" });
   } catch (err) {

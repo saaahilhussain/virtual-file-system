@@ -3,14 +3,16 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const s3Client = new S3Client({ profile: "nodejs" });
+const Bucket = process.env.S3_BUCKET;
 
 export const createSignedUploadUrl = async ({ Key, ContentType }) => {
   const command = new PutObjectCommand({
-    Bucket: "sahil-h-storage-app",
+    Bucket,
     Key,
     ContentType,
   });
@@ -27,7 +29,7 @@ export const createSignedGetUrl = async ({
   filename,
 }) => {
   const command = new GetObjectCommand({
-    Bucket: "sahil-h-storage-app",
+    Bucket,
     Key,
     ResponseContentDisposition: `${download ? "attachment" : "inline"}; filename=${filename}`,
   });
@@ -41,6 +43,12 @@ export const createSignedGetUrl = async ({
 
 export const getFileMetaData = async (Key) => {
   const command = new HeadObjectCommand({ Bucket: "sahil-h-storage-app", Key });
+
+  return s3Client.send(command);
+};
+
+export const deleteS3File = async (Key) => {
+  const command = new DeleteObjectCommand({ Bucket, Key });
 
   return s3Client.send(command);
 };
