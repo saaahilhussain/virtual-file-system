@@ -10,6 +10,7 @@ import {
   getFileMetaData,
   deleteS3File,
 } from "../services/s3Service.js";
+import { createCloudFrontGetUrl } from "../services/cloudFrontService.js";
 
 async function updateAncestorSizes(startParentId, delta) {
   if (!startParentId || !Number.isFinite(delta) || delta === 0) return;
@@ -167,14 +168,23 @@ export const getFile = async (req, res) => {
     return res.status(404).json({ error: "File not found!" });
   }
 
-  // if download, content-disposition is attachment, else inline
-  const fileUrl = await createSignedGetUrl({
-    Key: `${id}${fileData.extension}`,
-    download: req.query.action === "download", // else undefined
-    filename: fileData.name,
-  });
+  // // if download, content-disposition is attachment, else inline
+  // const fileUrl = await createSignedGetUrl({
+  //   Key: `${id}${fileData.extension}`,
+  //   download: req.query.action === "download", // else undefined
+  //   filename: fileData.name,
+  // });
 
-  return res.redirect(fileUrl);
+  try {
+    const fileUrl = createCloudFrontGetUrl({
+      Key: `${id}${fileData.extension}`,
+    });
+    return res.redirect(fileUrl);
+  } catch (error) {
+    console.log(error);
+  }
+
+  // return res.redirect(fileUrl);
 };
 
 export const renameFile = async (req, res, next) => {
