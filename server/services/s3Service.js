@@ -4,6 +4,7 @@ import {
   GetObjectCommand,
   HeadObjectCommand,
   DeleteObjectCommand,
+  DeleteObjectsCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -50,5 +51,16 @@ export const getFileMetaData = async (Key) => {
 export const deleteS3File = async (Key) => {
   const command = new DeleteObjectCommand({ Bucket, Key });
 
+  return s3Client.send(command);
+};
+
+export const deleteS3Files = async (keys) => {
+  const command = new DeleteObjectsCommand({
+    Bucket,
+    Delete: {
+      Objects: keys,
+      Quiet: false,
+    },
+  });
   return s3Client.send(command);
 };

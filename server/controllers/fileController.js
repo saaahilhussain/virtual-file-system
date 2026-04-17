@@ -270,13 +270,7 @@ export const permanentlyDeleteFile = async (req, res, next) => {
     }
 
     await File.deleteOne({ _id: file._id });
-    // Remove file from s3 bucket
-    const response = await deleteS3File(`${file.id}${file.extension}`);
-    console.log(response);
-    // await rm(`./storage/${id}${file.extension}`, { recursive: true }).catch(
-    //   () => {},
-    // );
-
+    await deleteS3File(`${file.id}${file.extension}`);
     return res.status(200).json({ message: "File Deleted Permanently" });
   } catch (err) {
     next(err);

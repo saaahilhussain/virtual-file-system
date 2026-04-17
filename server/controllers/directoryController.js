@@ -2,6 +2,8 @@ import { ObjectId } from "mongodb";
 import { rm } from "fs/promises";
 import Directory from "../models/directoryModel.js";
 import File from "../models/fileModel.js";
+import { deleteS3Files } from "../services/s3Service.js";
+import { response } from "express";
 
 async function updateAncestorSizes(startParentId, delta) {
   if (!startParentId || !Number.isFinite(delta) || delta === 0) return;
@@ -332,9 +334,10 @@ export const permanentlyDeleteDirectory = async (req, res, next) => {
     );
   }
 
-  for (const { _id, extension } of files) {
-    await rm(`./storage/${_id.toString()}${extension}`).catch(() => {});
-  }
+  const keys = files.map(({ _id, extension }) => ({
+    Key: `${_id}${extension}`,
+  }));
+  await deleteS3Files(keys);
 
   if (files.length > 0) {
     await File.deleteMany({
