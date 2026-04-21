@@ -195,6 +195,13 @@ function Sidebar({
           <span>{storageLoading ? "Loading..." : `${formatBytes(safeUsed)} Used`}</span>
           <span>{storageLoading ? "--" : formatBytes(safeMax)}</span>
         </div>
+        <Link
+          to="/plans"
+          className="nav-item"
+          style={{ marginTop: 12, justifyContent: "center" }}
+        >
+          Get more storage
+        </Link>
       </div>
     </div>
   );

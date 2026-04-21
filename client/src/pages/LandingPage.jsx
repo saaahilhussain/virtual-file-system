@@ -33,11 +33,11 @@ const LandingPage = () => {
         />
         {/* Glow effect */}
         <div
-          className="absolute rounded-full w-[600px] h-[600px] blur-3xl opacity-30 -top-40 -left-40 pointer-events-none"
+          className="absolute rounded-full w-150 h-150 blur-3xl opacity-30 -top-40 -left-40 pointer-events-none"
           style={{ backgroundColor: "var(--accent-green-soft)" }}
         ></div>
         <div
-          className="absolute rounded-full w-[800px] h-[800px] blur-3xl opacity-10 -bottom-80 -right-40 pointer-events-none"
+          className="absolute rounded-full w-200 h-200 blur-3xl opacity-10 -bottom-80 -right-40 pointer-events-none"
           style={{ backgroundColor: "var(--accent-black)" }}
         ></div>
 
