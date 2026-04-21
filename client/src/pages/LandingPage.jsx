@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PreAuthHeader from "../components/PreAuthHeader";
 import HeroSection from "../components/landing/HeroSection";
-import PreviewSection from "../components/landing/PreviewSection";
 import FeaturesSection from "../components/landing/FeaturesSection";
 import PricingSection from "../components/landing/PricingSection";
 import HowToUseSection from "../components/landing/HowToUseSection";
@@ -27,7 +26,11 @@ const LandingPage = () => {
     >
       <PreAuthHeader />
 
-      <main className="flex-1 flex flex-col items-center text-center px-4 pt-20 relative overflow-hidden">
+      <main className="flex-1 flex flex-col items-center text-center px-4 pt-28 relative overflow-hidden">
+        <div
+          id="landing-top"
+          className="absolute top-0 left-0 h-px w-px pointer-events-none"
+        />
         {/* Glow effect */}
         <div
           className="absolute rounded-full w-[600px] h-[600px] blur-3xl opacity-30 -top-40 -left-40 pointer-events-none"
@@ -40,8 +43,7 @@ const LandingPage = () => {
 
         <HeroSection onPrimaryClick={() => navigate("/login")} />
 
-        <div className="relative z-10 w-full flex flex-col items-center gap-40 md:gap-48 pt-20 pb-24">
-          <PreviewSection />
+        <div className="relative z-10 w-full flex flex-col items-center gap-40 md:gap-48 mt-28 pb-10 md:pb-12">
           <FeaturesSection />
           <PricingSection />
           <HowToUseSection />

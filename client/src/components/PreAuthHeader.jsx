@@ -7,7 +7,10 @@ const PreAuthHeader = () => {
 
   const handleBrandClick = () => {
     if (location.pathname === "/") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      document.getElementById("landing-top")?.scrollIntoView({
+        behavior: "auto",
+        block: "start",
+      });
       return;
     }
 

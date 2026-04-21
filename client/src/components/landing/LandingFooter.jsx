@@ -3,7 +3,7 @@ import React from "react";
 const LandingFooter = () => {
   return (
     <footer
-      className="w-full border-t pt-12 pb-16 px-4"
+      className="w-full border-t pt-12 pb-8 px-4"
       style={{ borderColor: "var(--border-subtle)" }}
     >
       <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-10 text-left">
