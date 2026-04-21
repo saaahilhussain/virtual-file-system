@@ -5,6 +5,22 @@ const PreAuthHeader = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const handleBrandClick = () => {
+    if (location.pathname === "/") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    navigate("/");
+  };
+
+  const scrollToSection = (sectionId) => {
+    const section = document.getElementById(sectionId);
+    if (section) {
+      section.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem("theme") === "dark";
   });
@@ -31,7 +47,7 @@ const PreAuthHeader = () => {
     >
       <div
         className="flex items-center gap-2 cursor-pointer transition-transform hover:scale-105"
-        onClick={() => navigate("/")}
+        onClick={handleBrandClick}
       >
         <div
           className="w-3 h-3 rounded-full"
@@ -44,6 +60,36 @@ const PreAuthHeader = () => {
           File Shelter
         </span>
       </div>
+
+      {location.pathname === "/" && (
+        <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-8">
+          <button
+            type="button"
+            onClick={() => scrollToSection("features")}
+            className="text-base font-semibold transition-opacity hover:opacity-70"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            Features
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollToSection("pricing")}
+            className="text-base font-semibold transition-opacity hover:opacity-70"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            Pricing
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollToSection("how-to-use")}
+            className="text-base font-semibold transition-opacity hover:opacity-70"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            How to use
+          </button>
+        </div>
+      )}
+
       <div className="flex gap-4 items-center">
         <button
           className="theme-toggle"
@@ -96,7 +142,7 @@ const PreAuthHeader = () => {
         {location.pathname === "/" && (
           <button
             onClick={() => navigate("/login")}
-            className="px-6 py-2 rounded-full font-medium transition-all hover:scale-105"
+            className="px-6 py-2 rounded-full text-base font-normal transition-all hover:scale-105"
             style={{
               backgroundColor: "var(--bg-canvas)",
               border: "1px solid var(--border-subtle)",
@@ -108,11 +154,15 @@ const PreAuthHeader = () => {
         )}
         <button
           onClick={() => {
-            if (location.pathname === "/" || location.pathname === "/login") navigate("/register");
+            if (location.pathname === "/" || location.pathname === "/login")
+              navigate("/register");
             else navigate("/login");
           }}
-          className="px-6 py-2 rounded-full font-medium transition-all hover:scale-105"
-          style={{ backgroundColor: "var(--accent-black)", color: "var(--bg-canvas)" }}
+          className="px-6 py-2 rounded-full text-base font-semibold transition-all hover:scale-105"
+          style={{
+            backgroundColor: "var(--accent-black)",
+            color: "var(--bg-canvas)",
+          }}
         >
           {location.pathname === "/" || location.pathname === "/login"
             ? "Create an account"
