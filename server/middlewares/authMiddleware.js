@@ -15,11 +15,15 @@ export default async function checkAuth(req, res, next) {
     return res.status(401).json({ error: "Not logged!" });
   }
 
-  req.user = { _id: session.userId, rootDirId: session.rootDirId };
+  req.user = {
+    _id: session.userId,
+    rootDirId: session.rootDirId,
+    role: session.role || "user",
+  };
   next();
 }
 
-export function checkNotUser(req, res, next) {
+export function checkIsNotUser(req, res, next) {
   if (req.user.role !== "user") {
     return next();
   }

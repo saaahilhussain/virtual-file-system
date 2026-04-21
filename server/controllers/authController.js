@@ -80,6 +80,7 @@ export const loginWithGoogle = async (req, res, next) => {
     await redisClient.json.set(redisKey, "$", {
       userId: user._id,
       rootDirId: user.rootDirId,
+      role: user.role,
     });
     await redisClient.expire(redisKey, sessionExpiry / 1000);
 
@@ -142,7 +143,11 @@ export const loginWithGoogle = async (req, res, next) => {
     const sessionId = crypto.randomUUID();
     const redisKey = `session:${sessionId}`;
     const sessionExpiry = 60 * 60 * 24 * 7 * 1000;
-    await redisClient.json.set(redisKey, "$", { userId, rootDirId });
+    await redisClient.json.set(redisKey, "$", {
+      userId,
+      rootDirId,
+      role: "user",
+    });
     await redisClient.expire(redisKey, sessionExpiry / 1000);
 
     res.cookie("sid", sessionId, {
@@ -192,6 +197,7 @@ export const loginWithGithub = async (req, res, next) => {
       await redisClient.json.set(redisKey, "$", {
         userId: user._id,
         rootDirId: user.rootDirId,
+        role: user.role,
       });
       await redisClient.expire(redisKey, sessionExpiry / 1000);
 
@@ -252,7 +258,11 @@ export const loginWithGithub = async (req, res, next) => {
       const sessionId = crypto.randomUUID();
       const redisKey = `session:${sessionId}`;
       const sessionExpiry = 60 * 60 * 24 * 7 * 1000;
-      await redisClient.json.set(redisKey, "$", { userId, rootDirId });
+      await redisClient.json.set(redisKey, "$", {
+        userId,
+        rootDirId,
+        role: "user",
+      });
       await redisClient.expire(redisKey, sessionExpiry / 1000);
 
       res.cookie("sid", sessionId, {

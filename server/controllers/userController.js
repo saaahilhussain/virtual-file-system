@@ -114,6 +114,7 @@ export const loginUser = async (req, res, next) => {
   await redisClient.json.set(redisKey, "$", {
     userId: user._id,
     rootDirId: user.rootDirId,
+    role: user.role,
   });
   await redisClient.expire(redisKey, sessionExpiry / 1000);
 

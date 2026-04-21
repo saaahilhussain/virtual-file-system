@@ -7,7 +7,7 @@ import userRoutes from "./routes/userRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import trashRoutes from "./routes/trashRoutes.js";
 import usersRoutes from "./routes/usersRoutes.js";
-import checkAuth from "./middlewares/authMiddleware.js";
+import checkAuth, { checkIsNotUser } from "./middlewares/authMiddleware.js";
 import { connectDB } from "./config/db.js";
 
 await connectDB();
@@ -28,7 +28,7 @@ app.use("/trash", checkAuth, trashRoutes);
 
 app.use("/user", userRoutes);
 app.use("/auth", authRoutes);
-app.use("/users", usersRoutes);
+app.use("/users", checkAuth, checkIsNotUser, usersRoutes);
 
 // global error handler
 app.use((err, req, res, next) => {

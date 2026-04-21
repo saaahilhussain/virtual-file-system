@@ -1,5 +1,4 @@
 import express from "express";
-import checkAuth, { checkNotUser } from "../middlewares/authMiddleware.js";
 import {
   getAllUsers,
   deleteUser,
@@ -11,14 +10,14 @@ import {
 
 const router = express.Router();
 
-router.get("/", checkAuth, checkNotUser, getAllUsers);
+router.get("/", getAllUsers);
 
-router.delete("/:id", checkAuth, deleteUser);
+router.delete("/:id", deleteUser);
 
-router.post("/logout/:id", checkAuth, logoutUser);
-router.post("/restore/:id", checkAuth, restoreUser);
+router.post("/logout/:id", logoutUser);
+router.post("/restore/:id", restoreUser);
 
-router.put("/role/:id", checkAuth, updateRole);
-router.put("/update/:id", checkAuth, updateUser);
+router.put("/role/:id", updateRole);
+router.put("/update/:id", updateUser);
 
 export default router;

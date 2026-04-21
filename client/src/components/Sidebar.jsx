@@ -30,7 +30,8 @@ function Sidebar({
   const safeUsed = Number.isFinite(usedStorage) ? usedStorage : 0;
   const safeMax = Number.isFinite(maxStorage) ? maxStorage : 0;
   const usagePercent = safeMax > 0 ? Math.min((safeUsed / safeMax) * 100, 100) : 0;
-  const canManageUsers = Boolean(role) && role !== "user";
+  const normalizedRole = String(role || "").trim().toLowerCase();
+  const canManageUsers = ["manager", "admin", "owner"].includes(normalizedRole);
 
   return (
     <div className="sidebar">
