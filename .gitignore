@@ -7,6 +7,8 @@ build/
 coverage/
 .nyc_output/
 
+.vscode
+
 # Client
 client/node_modules/
 client/.env
