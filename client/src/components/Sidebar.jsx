@@ -29,8 +29,11 @@ function Sidebar({
 
   const safeUsed = Number.isFinite(usedStorage) ? usedStorage : 0;
   const safeMax = Number.isFinite(maxStorage) ? maxStorage : 0;
-  const usagePercent = safeMax > 0 ? Math.min((safeUsed / safeMax) * 100, 100) : 0;
-  const normalizedRole = String(role || "").trim().toLowerCase();
+  const usagePercent =
+    safeMax > 0 ? Math.min((safeUsed / safeMax) * 100, 100) : 0;
+  const normalizedRole = String(role || "")
+    .trim()
+    .toLowerCase();
   const canManageUsers = ["manager", "admin", "owner"].includes(normalizedRole);
 
   return (
@@ -162,7 +165,7 @@ function Sidebar({
             Users
           </Link>
         )}
-        
+
         <Link
           to="/trash"
           className={`nav-item ${pathname === "/trash" ? "active" : ""}`}
@@ -189,10 +192,15 @@ function Sidebar({
         <div className="storage-aura"></div>
         <div className="storage-title">Storage</div>
         <div className="storage-bar">
-          <div className="storage-fill" style={{ width: `${usagePercent}%` }}></div>
+          <div
+            className="storage-fill"
+            style={{ width: `${usagePercent}%` }}
+          ></div>
         </div>
         <div className="storage-meta">
-          <span>{storageLoading ? "Loading..." : `${formatBytes(safeUsed)} Used`}</span>
+          <span>
+            {storageLoading ? "Loading..." : `${formatBytes(safeUsed)} Used`}
+          </span>
           <span>{storageLoading ? "--" : formatBytes(safeMax)}</span>
         </div>
         <Link
