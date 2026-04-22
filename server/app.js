@@ -22,13 +22,16 @@ app.use(
   }),
 );
 
+// PROTECTED ROUTES
 app.use("/directory", checkAuth, directoryRoutes);
 app.use("/file", checkAuth, fileRoutes);
 app.use("/trash", checkAuth, trashRoutes);
+app.use("/users", checkAuth, checkIsNotUser, usersRoutes);
+app.use("/subscriptions", checkAuth)
 
+// UNPROTECTED ROUTES
 app.use("/user", userRoutes);
 app.use("/auth", authRoutes);
-app.use("/users", checkAuth, checkIsNotUser, usersRoutes);
 
 // global error handler
 app.use((err, req, res, next) => {
