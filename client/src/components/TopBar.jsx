@@ -240,6 +240,30 @@ function TopBar({
                 <div className="profile-menu-email">{userEmail}</div>
               </div>
               <div className="profile-menu-body">
+                <a
+                  href="#"
+                  className="profile-menu-item"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate("/plans");
+                    setShowUserMenu(false);
+                  }}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 1v22" />
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14.5a3.5 3.5 0 0 1 0 7H6" />
+                  </svg>
+                  <span>Buy more storage</span>
+                </a>
                 {loggedIn ? (
                   <>
                     <a

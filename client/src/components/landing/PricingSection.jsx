@@ -1,4 +1,7 @@
 import { useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { createSubscription } from "../../apis/subscriptionApi";
+import { fetchUser } from "../../apis/userApi";
 
 const PRICING_PLANS = [
   {
@@ -20,6 +23,10 @@ const PRICING_PLANS = [
     yearlyPrice: 149,
     yearlyDiscount: 50,
     highlighted: true,
+    rzpPlanIds: {
+      monthly: import.meta.env.VITE_RZP_PLAN_PRO_MONTHLY,
+      yearly: import.meta.env.VITE_RZP_PLAN_PRO_YEARLY,
+    },
     features: [
       "200 GB secure storage",
       "File upload limit: 2 GB per file",
@@ -34,6 +41,10 @@ const PRICING_PLANS = [
     yearlyPrice: 499,
     yearlyDiscount: 100,
     highlighted: false,
+    rzpPlanIds: {
+      monthly: import.meta.env.VITE_RZP_PLAN_PREMIUM_MONTHLY,
+      yearly: import.meta.env.VITE_RZP_PLAN_PREMIUM_YEARLY,
+    },
     features: [
       "2 TB secure storage",
       "File upload limit: 10 GB per file",
@@ -46,6 +57,53 @@ const PRICING_PLANS = [
 
 const PricingSection = () => {
   const [billingCycle, setBillingCycle] = useState("monthly");
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleBuyClick = async (plan) => {
+    const planId = plan.rzpPlanIds?.[billingCycle];
+    if (!planId) {
+      console.error(
+        `Missing Razorpay plan id for ${plan.name} (${billingCycle})`,
+      );
+      return;
+    }
+
+    try {
+      await fetchUser();
+    } catch (error) {
+      if (error.message === "Unauthorized") {
+        const from = `${location.pathname}${location.search}${location.hash}`;
+        navigate("/login", {
+          state: {
+            from,
+            notice: "Please log in first to buy more storage.",
+          },
+        });
+        return;
+      }
+
+      console.error("Failed to check auth state", error);
+      return;
+    }
+
+    try {
+      const subscription = await createSubscription(planId);
+      console.log(`${plan.name} clicked`, subscription);
+    } catch (error) {
+      if (error.message === "Unauthorized") {
+        const from = `${location.pathname}${location.search}${location.hash}`;
+        navigate("/login", {
+          state: {
+            from,
+            notice: "Please log in first to buy more storage.",
+          },
+        });
+        return;
+      }
+      console.error("Failed to create subscription", error);
+    }
+  };
 
   const planCards = useMemo(
     () =>
@@ -58,6 +116,12 @@ const PricingSection = () => {
 
         return {
           ...plan,
+          buyLabel:
+            plan.name === "Pro"
+              ? "Choose 200GB"
+              : plan.name === "Premium"
+                ? "Choose 2TB"
+                : null,
           priceLabel:
             billingCycle === "monthly"
               ? monthlyPrice === 0
@@ -195,6 +259,19 @@ const PricingSection = () => {
                 </li>
               ))}
             </ul>
+            {plan.buyLabel ? (
+              <button
+                type="button"
+                onClick={() => handleBuyClick(plan)}
+                className="mt-6 w-full rounded-xl px-4 py-3 text-base md:text-lg font-semibold transition-all hover:opacity-90"
+                style={{
+                  backgroundColor: "var(--accent-black)",
+                  color: "var(--bg-canvas)",
+                }}
+              >
+                {plan.buyLabel}
+              </button>
+            ) : null}
           </div>
         ))}
       </div>

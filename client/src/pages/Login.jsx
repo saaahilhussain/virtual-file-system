@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import { loginWithGoogle } from "../apis/loginWithGoogle";
 import PreAuthHeader from "../components/PreAuthHeader";
@@ -17,6 +17,9 @@ const Login = () => {
   const [serverError, setServerError] = useState("");
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from || "/app";
+  const loginNotice = location.state?.notice || "";
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -37,7 +40,7 @@ const Login = () => {
 
     try {
       await loginUser(formData);
-      navigate("/app");
+      navigate(from, { replace: true });
     } catch (error) {
       console.error("Error:", error);
       setServerError(
@@ -68,6 +71,18 @@ const Login = () => {
           <p className="form-subtitle">
             Enter your details to access your vault.
           </p>
+          {loginNotice ? (
+            <p
+              style={{
+                marginTop: "10px",
+                color: "#b45309",
+                fontSize: "14px",
+                fontWeight: 600,
+              }}
+            >
+              {loginNotice}
+            </p>
+          ) : null}
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -123,7 +138,7 @@ const Login = () => {
                 console.log(data);
                 return;
               }
-              navigate("/app");
+              navigate(from, { replace: true });
             }}
             onError={() => {
               console.log("Login Failed");
@@ -149,7 +164,7 @@ const Login = () => {
                 if (data.error) {
                   setServerError(data.error);
                 } else {
-                  navigate("/app");
+                  navigate(from, { replace: true });
                 }
               } catch (error) {
                 console.error("GitHub Login Error:", error);
