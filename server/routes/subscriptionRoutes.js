@@ -6,7 +6,7 @@ import {
   pauseSubscription,
   upgradeSubscription,
   webhook,
-} from "../controllers/subscriptionController";
+} from "../controllers/subscriptionController.js";
 
 const router = express.Router();
 
@@ -21,3 +21,5 @@ router.post("/pause", pauseSubscription);
 router.post("/cancel", cancelSubscription);
 
 router.post("/api/billing/webhook", webhook);
+
+export default router;

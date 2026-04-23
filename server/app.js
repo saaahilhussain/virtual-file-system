@@ -5,6 +5,7 @@ import directoryRoutes from "./routes/directoryRoutes.js";
 import fileRoutes from "./routes/fileRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 import trashRoutes from "./routes/trashRoutes.js";
 import usersRoutes from "./routes/usersRoutes.js";
 import checkAuth, { checkIsNotUser } from "./middlewares/authMiddleware.js";
@@ -27,7 +28,7 @@ app.use("/directory", checkAuth, directoryRoutes);
 app.use("/file", checkAuth, fileRoutes);
 app.use("/trash", checkAuth, trashRoutes);
 app.use("/users", checkAuth, checkIsNotUser, usersRoutes);
-app.use("/subscriptions", checkAuth)
+app.use("/subscriptions", checkAuth, subscriptionRoutes);
 
 // UNPROTECTED ROUTES
 app.use("/user", userRoutes);

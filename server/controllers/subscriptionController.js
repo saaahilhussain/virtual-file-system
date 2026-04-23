@@ -3,6 +3,8 @@ export const getSubscriptionDetails = (req, res) => {
 };
 
 export const createSubscription = (req, res) => {
+  console.log(req.body);
+  console.log(req.user)
   return;
 };
 
@@ -18,6 +20,6 @@ export const cancelSubscription = (req, res) => {
   return;
 };
 
-export const webhook = (req, req) => {
+export const webhook = (req, res) => {
   return;
 };

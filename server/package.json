@@ -13,6 +13,7 @@
   "description": "",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1030.0",
+    "@aws-sdk/cloudfront-signer": "^3.1031.0",
     "@aws-sdk/s3-request-presigner": "^3.1030.0",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
@@ -23,6 +24,7 @@
     "mongodb": "^7.0.0",
     "mongoose": "^9.2.3",
     "node-fetch": "^3.3.2",
+    "razorpay": "^2.9.6",
     "redis": "^5.11.0",
     "resend": "^6.9.2",
     "zod": "^4.3.6"
