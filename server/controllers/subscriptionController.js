@@ -10,6 +10,9 @@ export const createSubscription = async (req, res, err) => {
     const subscription = await razorPayInstance.subscriptions.create({
       plan_id: planId,
       total_count: 60,
+      notes: {
+        userId: req.user._id,
+      },
     });
 
     console.log(subscription);

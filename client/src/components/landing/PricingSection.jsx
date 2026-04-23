@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { createSubscription } from "../../apis/subscriptionApi";
 import { fetchUser } from "../../apis/userApi";
@@ -55,10 +55,39 @@ const PRICING_PLANS = [
   },
 ];
 
+function openRazorpayPopup({ subscriptionId }) {
+  const rzp = new Razorpay({
+    key: import.meta.env.VITE_RZP_KEY_ID,
+    description: "Storage subscription payment",
+    name: "File Shelter",
+    subscription_id: subscriptionId,
+    handler: async function (response) {
+      console.log(response);
+    },
+  });
+
+  rzp.on("payment.failed", function (response) {
+    console.log(response);
+  });
+
+  rzp.open();
+}
+
 const PricingSection = () => {
   const [billingCycle, setBillingCycle] = useState("monthly");
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    const razorpayScript = document.querySelector("#razorpay-script");
+    if (razorpayScript) return;
+
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.id = "razorpay-script";
+    document.body.appendChild(script);
+  }, []);
 
   const handleBuyClick = async (plan) => {
     const planId = plan.rzpPlanIds?.[billingCycle];
@@ -88,8 +117,13 @@ const PricingSection = () => {
     }
 
     try {
-      const subscription = await createSubscription(planId);
-      console.log(`${plan.name} clicked`, subscription);
+      const { subscriptionId } = await createSubscription(planId);
+      console.log(`${plan.name} clicked`);
+      if (subscriptionId) {
+        openRazorpayPopup({ subscriptionId });
+      } else {
+        console.error("Missing subscriptionId in createSubscription response");
+      }
     } catch (error) {
       if (error.message === "Unauthorized") {
         const from = `${location.pathname}${location.search}${location.hash}`;
