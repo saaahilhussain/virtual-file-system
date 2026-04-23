@@ -1,4 +1,3 @@
-import React from "react";
 import PreviewSection from "./PreviewSection";
 
 const HeroSection = ({ onPrimaryClick }) => {

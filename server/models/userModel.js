@@ -49,6 +49,11 @@ const userSchema = new Schema({
     enum: ["user", "manager", "admin", "owner"],
     default: "user",
   },
+  subscriptionId: {
+    type: Schema.Types.ObjectId,
+    required: true,
+    ref: "Subscription",
+  },
   isDeleted: {
     type: Boolean,
     default: false,

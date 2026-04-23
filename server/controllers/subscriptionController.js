@@ -17,3 +17,7 @@ export const pauseSubscription = (req, res) => {
 export const cancelSubscription = (req, res) => {
   return;
 };
+
+export const webhook = (req, req) => {
+  return;
+};

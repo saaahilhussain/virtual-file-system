@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 const PRICING_PLANS = [
   {
@@ -29,7 +29,7 @@ const PRICING_PLANS = [
     ],
   },
   {
-    name: "Business",
+    name: "Premium",
     monthlyPrice: 649,
     yearlyPrice: 499,
     yearlyDiscount: 100,
