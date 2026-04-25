@@ -15,7 +15,8 @@ export const createSubscription = async (req, res, err) => {
       },
     });
 
-    console.log(subscription);
+    
+
     res.json({ subscriptionId: subscription.id });
   } catch (error) {
     next(error);

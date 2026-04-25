@@ -30,19 +30,21 @@ const subscriptionSchema = new Schema(
 
     status: {
       type: String,
-      enum: ["pending", "active", "past_due", "paused", "canceled", "in_grace"],
-      default: "pending",
-    },
-
-    currentPeriodStart: Date,
-    currentPeriodEnd: Date,
-
-    cancelAtPeriodEnd: {
-      type: Boolean,
-      default: false,
+      enum: [
+        "created",
+        "active",
+        "past_due",
+        "paused",
+        "canceled",
+        "in_grace",
+        "complete",
+      ],
+      default: "created",
     },
   },
   { timestamps: true },
 );
 
-export default mongoose.model("Subscription", subscriptionSchema);
+const Subscription = model("Subscription", subscriptionSchema);
+
+export default Subscription;
