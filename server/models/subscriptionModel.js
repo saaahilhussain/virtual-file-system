@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const { Schema } = mongoose;
+const { Schema, model } = mongoose;
 
 const subscriptionSchema = new Schema(
   {
@@ -10,11 +10,19 @@ const subscriptionSchema = new Schema(
       required: true,
       index: true,
     },
-
     planId: {
       type: String,
       required: true,
     },
+    // email: {
+    //   type: String,
+    //   match: [
+    //     /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+.[A-Za-z]{2,}$/,
+    //     "Please enter a valid email",
+    //   ],
+    //   minLength: 4,
+    //   required: true,
+    // },
 
     razorpaySubscriptionId: {
       type: String,
@@ -22,11 +30,11 @@ const subscriptionSchema = new Schema(
       unique: true,
     },
 
-    billingCycle: {
-      type: String,
-      enum: ["monthly", "yearly"],
-      required: true,
-    },
+    // billingCycle: {
+    //   type: String,
+    //   enum: ["monthly", "yearly"],
+    //   required: true,
+    // },
 
     status: {
       type: String,

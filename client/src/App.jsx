@@ -72,6 +72,15 @@ const router = createBrowserRouter([
 ]);
 
 function App() {
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme");
+    document.body.classList.toggle("dark-mode", savedTheme === "dark");
+
+    if (!savedTheme) {
+      localStorage.setItem("theme", "light");
+    }
+  }, []);
+
   return <RouterProvider router={router} />;
 }
 

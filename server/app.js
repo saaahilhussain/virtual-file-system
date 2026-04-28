@@ -10,6 +10,7 @@ import trashRoutes from "./routes/trashRoutes.js";
 import usersRoutes from "./routes/usersRoutes.js";
 import checkAuth, { checkIsNotUser } from "./middlewares/authMiddleware.js";
 import { connectDB } from "./config/db.js";
+import { webhookController } from "./controllers/webhookController.js";
 
 await connectDB();
 const app = express();
@@ -33,6 +34,9 @@ app.use("/subscriptions", checkAuth, subscriptionRoutes);
 // UNPROTECTED ROUTES
 app.use("/user", userRoutes);
 app.use("/auth", authRoutes);
+
+// WEBHOOK//
+app.post("/api/billing/webhook", webhookController);
 
 // global error handler
 app.use((err, req, res, next) => {

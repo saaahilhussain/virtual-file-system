@@ -3,6 +3,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { createSubscription } from "../../apis/subscriptionApi";
 import { fetchUser } from "../../apis/userApi";
 
+const RAZORPAY_KEY_ID = import.meta.env.VITE_RZP_KEY_ID_TEST;
+
 const PRICING_PLANS = [
   {
     name: "Free",
@@ -24,8 +26,8 @@ const PRICING_PLANS = [
     yearlyDiscount: 50,
     highlighted: true,
     rzpPlanIds: {
-      monthly: import.meta.env.VITE_RZP_PLAN_PRO_MONTHLY,
-      yearly: import.meta.env.VITE_RZP_PLAN_PRO_YEARLY,
+      monthly: import.meta.env.VITE_RZP_PLAN_PRO_MONTHLY_TEST,
+      yearly: import.meta.env.VITE_RZP_PLAN_PRO_YEARLY_TEST,
     },
     features: [
       "200 GB secure storage",
@@ -42,8 +44,8 @@ const PRICING_PLANS = [
     yearlyDiscount: 100,
     highlighted: false,
     rzpPlanIds: {
-      monthly: import.meta.env.VITE_RZP_PLAN_PREMIUM_MONTHLY,
-      yearly: import.meta.env.VITE_RZP_PLAN_PREMIUM_YEARLY,
+      monthly: import.meta.env.VITE_RZP_PLAN_PREMIUM_MONTHLY_TEST,
+      yearly: import.meta.env.VITE_RZP_PLAN_PREMIUM_YEARLY_TEST,
     },
     features: [
       "2 TB secure storage",
@@ -56,13 +58,18 @@ const PRICING_PLANS = [
 ];
 
 function openRazorpayPopup({ subscriptionId }) {
+  if (!RAZORPAY_KEY_ID) {
+    console.error("Missing VITE_RZP_KEY_ID_TEST in client env");
+    return;
+  }
+
   const rzp = new Razorpay({
-    key: import.meta.env.VITE_RZP_KEY_ID,
+    key: RAZORPAY_KEY_ID,
     description: "Storage subscription payment",
     name: "File Shelter",
     subscription_id: subscriptionId,
     handler: async function (response) {
-      console.log(response);
+      window.location.href = "/app";
     },
   });
 

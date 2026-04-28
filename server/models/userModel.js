@@ -19,7 +19,9 @@ const userSchema = new Schema({
   maxStorageInBytes: {
     type: Number,
     required: true,
-    default: 1 * 1024 ** 3,
+    default: 1 * 1024 ** 3, // 1GB --> 50 GB -- FREE
+    // default: 2 * 1024 ** 2, // 2GB  --> 200 GB   -- PRO
+    // default: 1 * 1024 ** 3, //  2 TB  -- PREMIUM
   },
   password: {
     type: String,
@@ -49,11 +51,11 @@ const userSchema = new Schema({
     enum: ["user", "manager", "admin", "owner"],
     default: "user",
   },
-  subscriptionId: {
-    type: Schema.Types.ObjectId,
-    required: true,
-    ref: "Subscription",
-  },
+  // subscriptionId: {
+  //   type: Schema.Types.ObjectId,
+  //   required: true,
+  //   ref: "Subscription",
+  // },
   isDeleted: {
     type: Boolean,
     default: false,
