@@ -159,7 +159,7 @@ function UsersView() {
             </thead>
             <tbody>
               {users.map((user) => (
-                <tr key={user.id} className="user-row">
+                <tr key={user._id ?? user.id} className="user-row">
                   <td>
                     <div className="user-name-cell">
                       <div
