@@ -15,8 +15,13 @@ import { webhookController } from "./controllers/webhookController.js";
 await connectDB();
 const app = express();
 
-app.get("/test", (req, res) => {
+app.get("/", (req, res) => {
 	return res.json({message: "OK"})
+})
+
+app.get("/err", (req, res) => {
+
+	process.exit(1);
 })
 
 app.use(cookieParser(process.env.SESSION_SECRET));
