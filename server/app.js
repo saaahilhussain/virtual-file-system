@@ -24,11 +24,13 @@ app.get("/err", (req, res) => {
 	process.exit(1);
 })
 
+const allowedOrigins = [process.env.CLIENT_URI, "https://fileshelter.app", "https://www.fileshelter.app", "http://fileshelter.app", "http://www.fileshelter.app"];
+
 app.use(cookieParser(process.env.SESSION_SECRET));
 app.use(express.json());
 app.use(
   cors({
-    origin: process.env.CLIENT_URI,
+    origin: allowedOrigins,
     credentials: true,
   }),
 );
