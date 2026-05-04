@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const PreAuthHeader = () => {
@@ -28,6 +28,17 @@ const PreAuthHeader = () => {
     return localStorage.getItem("theme") === "dark";
   });
 
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 480);
+
+  const handleResize = useCallback(() => {
+    setIsMobile(window.innerWidth < 480);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [handleResize]);
+
   useEffect(() => {
     if (darkMode) {
       document.body.classList.add("dark-mode");
@@ -42,7 +53,7 @@ const PreAuthHeader = () => {
 
   return (
     <nav
-      className="flex justify-between items-center px-10 py-6 box-border fixed top-0 left-0 right-0 z-50"
+      className={`flex justify-between items-center ${isMobile ? "px-4 py-4" : "px-10 py-6"} box-border fixed top-0 left-0 right-0 z-50`}
       style={{
         background: "var(--bg-surface)",
         borderBottom: "1px solid var(--border-subtle)",
@@ -93,7 +104,7 @@ const PreAuthHeader = () => {
         </div>
       )}
 
-      <div className="flex gap-4 items-center">
+      <div className={`flex ${isMobile ? "gap-2" : "gap-4"} items-center`}>
         <button
           className="theme-toggle"
           onClick={toggleDarkMode}
@@ -145,7 +156,7 @@ const PreAuthHeader = () => {
         {location.pathname === "/" && (
           <button
             onClick={() => navigate("/login")}
-            className="px-6 py-2 rounded-full text-base font-normal transition-all hover:scale-105"
+            className={`${isMobile ? "px-4 py-1.5 text-sm" : "px-6 py-2 text-base"} rounded-full font-normal transition-all hover:scale-105 whitespace-nowrap`}
             style={{
               backgroundColor: "var(--bg-canvas)",
               border: "1px solid var(--border-subtle)",
@@ -161,15 +172,19 @@ const PreAuthHeader = () => {
               navigate("/register");
             else navigate("/login");
           }}
-          className="px-6 py-2 rounded-full text-base font-semibold transition-all hover:scale-105"
+          className={`${isMobile ? "px-4 py-1.5 text-sm" : "px-6 py-2 text-base"} rounded-full font-semibold transition-all hover:scale-105 whitespace-nowrap`}
           style={{
             backgroundColor: "var(--accent-black)",
             color: "var(--bg-canvas)",
           }}
         >
           {location.pathname === "/" || location.pathname === "/login"
-            ? "Create an account"
-            : "I have an account"}
+            ? isMobile
+              ? "Sign Up"
+              : "Create an account"
+            : isMobile
+              ? "Log In"
+              : "I have an account"}
         </button>
       </div>
     </nav>
