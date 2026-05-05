@@ -31,9 +31,18 @@ body.dark-mode {
 }
 
 @layer base {
+  html, body {
+    overflow-x: hidden;
+  }
   body {
     font-family: Arial, sans-serif;
     zoom: 0.8;
+  }
+
+  @media (max-width: 480px) {
+    body {
+      zoom: 1;
+    }
   }
 }
 
@@ -43,13 +52,25 @@ body.dark-mode {
   color: var(--text-primary);
   font-family: "Outfit", sans-serif;
   min-height: 125vh;
+  width: 100%;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 15px;
+  padding-top: 80px;
+  overflow-x: hidden;
   transition:
     background-color 0.3s,
     color 0.3s;
+}
+
+@media (max-width: 480px) {
+  .auth-page {
+    min-height: 100vh;
+    align-items: flex-start;
+    padding-bottom: 40px;
+  }
 }
 
 .auth-page *:not(.icon-sun):not(.icon-moon) {
@@ -75,6 +96,15 @@ body.dark-mode {
 
 body.dark-mode .auth-container {
   border-color: var(--border-subtle);
+}
+
+@media (max-width: 520px) {
+  .auth-container {
+    width: 100%;
+    max-width: calc(100% - 32px);
+    padding: 24px 24px;
+    border-radius: 16px;
+  }
 }
 
 /* ── Ambient Glow (dark mode only) ── */

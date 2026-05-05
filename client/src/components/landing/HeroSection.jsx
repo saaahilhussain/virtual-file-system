@@ -22,7 +22,7 @@ const HeroSection = ({ onPrimaryClick }) => {
       <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mb-8 md:mb-10 w-full sm:w-auto px-4 sm:px-0">
         <button
           onClick={onPrimaryClick}
-          className="w-full sm:w-auto px-10 py-4 rounded-full text-lg font-semibold transition-all hover:-translate-y-1 hover:shadow-2xl whitespace-nowrap"
+          className="w-full sm:w-auto px-8 py-3 rounded-full text-base sm:text-lg sm:px-10 sm:py-4 font-semibold transition-all hover:-translate-y-1 hover:shadow-2xl whitespace-nowrap"
           style={{
             backgroundColor: "var(--accent-black)",
             color: "var(--bg-canvas)",
@@ -37,7 +37,7 @@ const HeroSection = ({ onPrimaryClick }) => {
               .getElementById("preview")
               ?.scrollIntoView({ behavior: "smooth" })
           }
-          className="w-full sm:w-auto px-10 py-4 rounded-full text-lg font-semibold transition-all hover:-translate-y-1 hover:bg-black/5 whitespace-nowrap"
+          className="w-full sm:w-auto px-8 py-3 rounded-full text-base sm:text-lg sm:px-10 sm:py-4 font-semibold transition-all hover:-translate-y-1 hover:bg-black/5 whitespace-nowrap"
           style={{
             backgroundColor: "var(--bg-surface)",
             border: "1px solid var(--border-subtle)",
