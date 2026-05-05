@@ -17,6 +17,9 @@ function TrashView() {
   const [activeContextMenu, setActiveContextMenu] = useState(null);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
 
+  // Mobile sidebar
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   const fetchTrashItems = async () => {
     try {
       setIsLoading(true);
@@ -157,9 +160,13 @@ function TrashView() {
 
   return (
     <div className="app-container">
-      <Sidebar disabled={true} />
+      <div
+        className={`sidebar-overlay${sidebarOpen ? " sidebar-overlay-visible" : ""}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+      <Sidebar disabled={true} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <main className="main-content">
-        <TopBar />
+        <TopBar onToggleSidebar={() => setSidebarOpen((prev) => !prev)} />
 
         <div className="content-scroll">
           <div className="section-header">

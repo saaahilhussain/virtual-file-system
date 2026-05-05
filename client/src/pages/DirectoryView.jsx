@@ -68,6 +68,9 @@ function DirectoryView() {
   const [activeContextMenu, setActiveContextMenu] = useState(null);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
 
+  // Mobile sidebar
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   /**
    * Fetch directory contents
    */
@@ -431,6 +434,12 @@ function DirectoryView() {
 
   return (
     <div className="app-container">
+      {/* Sidebar overlay for mobile */}
+      <div
+        className={`sidebar-overlay${sidebarOpen ? " sidebar-overlay-visible" : ""}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+
       {/* Sidebar */}
       <Sidebar
         onCreateFolderClick={() => setShowCreateDirModal(true)}
@@ -440,6 +449,8 @@ function DirectoryView() {
         usedStorage={sidebarUser.usedStorage}
         maxStorage={sidebarUser.maxStorage}
         storageLoading={storageLoading}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
       {/* Main Content */}
@@ -448,6 +459,7 @@ function DirectoryView() {
           onUploadFilesClick={() => fileInputRef.current.click()}
           fileInputRef={fileInputRef}
           handleFileSelect={handleFileSelect}
+          onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
         />
 
         <div className="content-scroll">

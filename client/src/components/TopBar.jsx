@@ -7,6 +7,7 @@ function TopBar({
   handleFileSelect,
   searchPlaceholder = "Search files...",
   hideUpload = false,
+  onToggleSidebar,
 }) {
   const BASE_URL = "http://localhost:4000";
 
@@ -124,6 +125,20 @@ function TopBar({
 
   return (
     <div className="top-bar">
+      {onToggleSidebar && (
+        <button
+          className="sidebar-hamburger"
+          onClick={onToggleSidebar}
+          type="button"
+          aria-label="Toggle sidebar"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+      )}
       <div className="search-container">
         <svg
           className="search-icon"

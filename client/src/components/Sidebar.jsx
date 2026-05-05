@@ -8,6 +8,8 @@ function Sidebar({
   usedStorage = 0,
   maxStorage = 0,
   storageLoading = false,
+  isOpen = false,
+  onClose = () => {},
 }) {
   const location = useLocation();
   const pathname = location.pathname;
@@ -37,7 +39,7 @@ function Sidebar({
   const canManageUsers = ["manager", "admin", "owner"].includes(normalizedRole);
 
   return (
-    <div className="sidebar">
+    <div className={`sidebar${isOpen ? " sidebar-open" : ""}`}>
       <div className="brand">
         <div className="brand-dot"></div>
         FileShelter
@@ -51,7 +53,10 @@ function Sidebar({
             className="nav-item"
             onClick={(e) => {
               e.preventDefault();
-              if (!disabled) onCreateFolderClick();
+              if (!disabled) {
+                onCreateFolderClick();
+                onClose();
+              }
             }}
             style={{
               opacity: disabled ? 0.5 : 1,
@@ -79,7 +84,10 @@ function Sidebar({
             className="nav-item"
             onClick={(e) => {
               e.preventDefault();
-              if (!disabled) onUploadFilesClick();
+              if (!disabled) {
+                onUploadFilesClick();
+                onClose();
+              }
             }}
             style={{
               opacity: disabled ? 0.5 : 1,
@@ -111,6 +119,7 @@ function Sidebar({
         {/* Navigation */}
         <Link
           to="/app"
+          onClick={onClose}
           className={`nav-item ${pathname === "/app" || pathname.startsWith("/app/directory") ? "active" : ""}`}
         >
           <svg
@@ -147,6 +156,7 @@ function Sidebar({
         {canManageUsers && (
           <Link
             to="/users"
+            onClick={onClose}
             className={`nav-item ${pathname === "/users" ? "active" : ""}`}
           >
             <svg
@@ -168,6 +178,7 @@ function Sidebar({
 
         <Link
           to="/trash"
+          onClick={onClose}
           className={`nav-item ${pathname === "/trash" ? "active" : ""}`}
         >
           <svg

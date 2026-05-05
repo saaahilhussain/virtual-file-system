@@ -7,6 +7,9 @@ import { fetchUser, fetchAllUsers } from "../apis/userApi";
 function UsersView() {
   const [users, setUsers] = useState([]);
 
+  // Mobile sidebar
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   const [contextMenuUser, setContextMenuUser] = useState(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const [editingDetailsUser, setEditingDetailsUser] = useState(null);
@@ -117,9 +120,13 @@ function UsersView() {
 
   return (
     <div className="app-container">
-      <Sidebar disabled={false} role={userRole || null} />
+      <div
+        className={`sidebar-overlay${sidebarOpen ? " sidebar-overlay-visible" : ""}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+      <Sidebar disabled={false} role={userRole || null} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <main className="main-content">
-        <TopBar searchPlaceholder="Search users..." hideUpload={true} />
+        <TopBar searchPlaceholder="Search users..." hideUpload={true} onToggleSidebar={() => setSidebarOpen((prev) => !prev)} />
 
         <div className="content-scroll">
           <div className="section-header">

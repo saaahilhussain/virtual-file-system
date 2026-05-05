@@ -1657,3 +1657,394 @@ body.dark-mode .btn-delete {
 body.dark-mode .btn-delete:hover {
   background: rgba(229, 62, 62, 0.25);
 }
+
+/* ══════════════════════════════════════════════════
+   MOBILE SIDEBAR DRAWER
+   ══════════════════════════════════════════════════ */
+
+/* Hamburger button — hidden on desktop */
+.sidebar-hamburger {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-primary);
+  padding: 6px;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.sidebar-hamburger:hover {
+  background: var(--bg-canvas);
+}
+
+/* Overlay behind sidebar drawer */
+.sidebar-overlay {
+  display: none;
+}
+
+/* ══════════════════════════════════════════════════
+   RESPONSIVE — Tablet (≤ 900px)
+   ══════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .app-container {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .sidebar {
+    width: 200px;
+  }
+
+  .top-bar {
+    padding: 16px 20px;
+  }
+
+  .search-container {
+    width: 200px;
+  }
+
+  .search-container:focus-within {
+    width: 280px;
+  }
+
+  .content-scroll {
+    padding: 20px;
+  }
+
+  .section-header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .breadcrumb-current {
+    font-size: 20px;
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   RESPONSIVE — Mobile (≤ 768px)
+   ══════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Show hamburger */
+  .sidebar-hamburger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* App container: no padding, single column */
+  .app-container {
+    padding: 0;
+    gap: 0;
+    height: 125vh;
+  }
+
+  /* Sidebar becomes a slide-out drawer */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 260px;
+    max-width: 80vw;
+    z-index: 1000;
+    background: var(--bg-canvas);
+    padding: 20px 0;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  .storage-widget {
+    margin-top: 24px;
+    padding: 16px;
+    border-radius: 16px;
+    margin-left: 10px;
+    margin-right: 10px;
+  }
+
+  .storage-title {
+    font-size: 16px;
+    margin-bottom: 4px;
+  }
+
+  .storage-bar {
+    margin: 8px 0;
+  }
+
+  .storage-meta {
+    font-size: 12px;
+  }
+
+  .storage-widget .nav-item {
+    padding: 8px 14px;
+    font-size: 13px;
+    margin-top: 8px;
+  }
+
+  body.dark-mode .sidebar {
+    background: var(--bg-surface);
+  }
+
+  .sidebar.sidebar-open {
+    transform: translateX(0);
+    box-shadow: 8px 0 32px rgba(0, 0, 0, 0.15);
+  }
+
+  body.dark-mode .sidebar.sidebar-open {
+    box-shadow: 8px 0 32px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Overlay */
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .sidebar-overlay.sidebar-overlay-visible {
+    display: block;
+    opacity: 1;
+  }
+
+  /* Main content takes full width */
+  .main-content {
+    border-radius: 0;
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* Top bar adjustments */
+  .top-bar {
+    padding: 14px 16px;
+    gap: 10px;
+  }
+
+  .search-container {
+    width: 100%;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .search-container:focus-within {
+    width: 100%;
+  }
+
+  .search-input {
+    padding: 10px 16px 10px 40px;
+    font-size: 14px;
+  }
+
+  .search-icon {
+    left: 14px;
+    width: 16px;
+    height: 16px;
+  }
+
+  .action-area {
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .upload-btn {
+    padding: 9px 16px;
+    font-size: 13px;
+  }
+
+  .user-profile {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* Profile menu */
+  .profile-menu {
+    right: -8px;
+    min-width: 220px;
+  }
+
+  /* Content scroll */
+  .content-scroll {
+    padding: 16px;
+  }
+
+  /* Section header */
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .section-header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .breadcrumb-current {
+    font-size: 18px;
+  }
+
+  .breadcrumb-separator {
+    font-size: 16px;
+    margin: 0 4px;
+  }
+
+  .breadcrumb-item {
+    font-size: 13px;
+  }
+
+  /* Files table — hide Size and Type columns */
+  .files-table th:nth-child(2),
+  .files-table td:nth-child(2),
+  .files-table th:nth-child(3),
+  .files-table td:nth-child(3) {
+    display: none;
+  }
+
+  .files-table th {
+    padding: 0 12px 12px 12px;
+    font-size: 11px;
+  }
+
+  .files-table td {
+    padding: 14px 12px;
+  }
+
+  .file-name-cell {
+    gap: 10px;
+    font-size: 14px;
+  }
+
+  .file-name-cell span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: calc(100vw - 120px);
+  }
+
+  .file-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 10px;
+  }
+
+  /* Upload progress */
+  .upload-progress-row td {
+    padding: 0 12px 10px 12px;
+  }
+
+  /* Context menu */
+  .context-menu {
+    min-width: 180px;
+  }
+
+  /* Modals */
+  .modal-content {
+    padding: 22px 20px;
+    width: 92%;
+  }
+
+  .modal-title {
+    font-size: 18px;
+  }
+
+  /* Users table */
+  .users-table th:nth-child(2),
+  .users-table td:nth-child(2) {
+    display: none;
+  }
+
+  .users-table th:nth-child(1),
+  .users-table td:nth-child(1) {
+    min-width: auto;
+  }
+
+  .users-table td {
+    padding: 12px;
+  }
+
+  .user-actions {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   RESPONSIVE — Small mobile (≤ 480px)
+   ══════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .upload-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .top-bar {
+    padding: 12px;
+  }
+
+  .search-input {
+    padding: 8px 12px 8px 34px;
+    font-size: 13px;
+  }
+
+  .search-icon {
+    left: 10px;
+    width: 14px;
+    height: 14px;
+  }
+
+  .content-scroll {
+    padding: 12px;
+  }
+
+  .breadcrumb-current {
+    font-size: 16px;
+  }
+
+  .file-name-cell span {
+    max-width: calc(100vw - 100px);
+  }
+
+  .brand {
+    font-size: 22px;
+    margin-bottom: 28px;
+  }
+
+  .profile-menu {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-radius: 16px 16px 0 0;
+    min-width: auto;
+    width: 100%;
+    animation: menuSlideUp 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @keyframes menuSlideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .user-actions {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .user-actions button {
+    width: 100%;
+  }
+}
