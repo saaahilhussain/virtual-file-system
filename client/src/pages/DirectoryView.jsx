@@ -390,8 +390,26 @@ function DirectoryView() {
     if (activeContextMenu === id) {
       setActiveContextMenu(null);
     } else {
+      const menuWidth = window.innerWidth <= 768 ? 180 : 198;
+      const menuHeight = 320;
+      const edgePadding = 8;
+      const bodyZoom = Number.parseFloat(getComputedStyle(document.body).zoom) || 1;
+      const normalizedX = clickX / bodyZoom;
+      const normalizedY = clickY / bodyZoom;
+      const viewportWidth = window.innerWidth / bodyZoom;
+      const viewportHeight = window.innerHeight / bodyZoom;
+
+      const clampedX = Math.max(
+        edgePadding,
+        Math.min(normalizedX - menuWidth + 26, viewportWidth - menuWidth - edgePadding),
+      );
+      const clampedY = Math.max(
+        edgePadding,
+        Math.min(normalizedY, viewportHeight - menuHeight - edgePadding),
+      );
+
       setActiveContextMenu(id);
-      setContextMenuPos({ x: (clickX - 110) / 0.8, y: clickY / 0.8 });
+      setContextMenuPos({ x: clampedX, y: clampedY });
     }
   }
 

@@ -18,62 +18,56 @@ function DetailsModal({ item, onClose }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-content details-modal-content"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="modal-title">Details</h2>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "12px",
-            marginTop: "16px",
-            fontSize: "14px",
-            color: "var(--text-primary)",
-          }}
-        >
+        <div className="details-modal-body">
           <div>
-            <strong>Name:</strong> {item.name}
+            <strong>Name:</strong>{" "}
+            <span className="details-modal-value">{item.name}</span>
           </div>
           <div>
-            <strong>Path:</strong> {resolvedPath}
+            <strong>Path:</strong>{" "}
+            <span className="details-modal-value">{resolvedPath}</span>
           </div>
           <div>
-            <strong>Size:</strong> {formatSize(item.size)}
+            <strong>Size:</strong>{" "}
+            <span className="details-modal-value">{formatSize(item.size)}</span>
           </div>
           <div>
             <strong>Created At:</strong>{" "}
-            {item.createdAt
-              ? new Date(item.createdAt).toLocaleString("en-IN", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                  hour12: true,
-                })
-              : "N/A"}
+            <span className="details-modal-value">
+              {item.createdAt
+                ? new Date(item.createdAt).toLocaleString("en-IN", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                    hour12: true,
+                  })
+                : "N/A"}
+            </span>
           </div>
           <div>
             <strong>Updated At:</strong>{" "}
-            {item.updatedAt
-              ? new Date(item.updatedAt).toLocaleString("en-IN", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                  hour12: true,
-                })
-              : "N/A"}
+            <span className="details-modal-value">
+              {item.updatedAt
+                ? new Date(item.updatedAt).toLocaleString("en-IN", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                    hour12: true,
+                  })
+                : "N/A"}
+            </span>
           </div>
         </div>
-        <div
-          className="modal-actions"
-          style={{
-            marginTop: "24px",
-            display: "flex",
-            justifyContent: "flex-end",
-          }}
-        >
+        <div className="modal-actions details-modal-actions">
           <button
             className="modal-btn modal-btn-secondary"
             onClick={(e) => {
