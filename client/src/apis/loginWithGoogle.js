@@ -1,4 +1,4 @@
-const BASE_URL = "http://localhost:4000";
+const BASE_URL = import.meta.env.VITE_BACKEND_BASE_URI;
 
 export async function loginWithGoogle(idToken) {
   const res = await fetch(`${BASE_URL}/auth/google`, {

@@ -9,7 +9,7 @@ function TopBar({
   hideUpload = false,
   onToggleSidebar,
 }) {
-  const BASE_URL = "http://localhost:4000";
+  const BASE_URL = import.meta.env.VITE_BACKEND_BASE_URI;
 
   // Dark mode state
   const [darkMode, setDarkMode] = useState(() => {
