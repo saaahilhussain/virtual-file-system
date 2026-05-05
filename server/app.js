@@ -25,10 +25,10 @@ app.get("/err", (req, res) => {
 
 const allowedOrigins = [
   process.env.CLIENT_URI,
-  "https://fileshelter.app",
-  "https://www.fileshelter.app",
   "http://fileshelter.app",
+  "https://fileshelter.app",
   "http://www.fileshelter.app",
+  "https://www.fileshelter.app",
 ];
 
 app.use(cookieParser(process.env.SESSION_SECRET));
