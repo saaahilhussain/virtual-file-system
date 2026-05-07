@@ -9,8 +9,8 @@ import { loginUser } from "../apis/userApi";
 
 const Login = () => {
   const [formData, setFormData] = useState({
-    email: "test@test.com",
-    password: "test1234",
+    email: "",
+    password: "",
   });
 
   // serverError will hold the error message from the server
