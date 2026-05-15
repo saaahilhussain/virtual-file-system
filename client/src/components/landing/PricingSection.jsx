@@ -6,7 +6,7 @@ import {
 } from "../../apis/subscriptionApi";
 import { fetchUser } from "../../apis/userApi";
 
-const RAZORPAY_KEY_ID = import.meta.env.VITE_RZP_KEY_ID_TEST;
+const RAZORPAY_KEY_ID = import.meta.env.VITE_RZP_KEY_ID;
 
 const PRICING_PLANS = [
   {
@@ -29,8 +29,8 @@ const PRICING_PLANS = [
     yearlyDiscount: 50,
     highlighted: true,
     rzpPlanIds: {
-      monthly: import.meta.env.VITE_RZP_PLAN_PRO_MONTHLY_TEST,
-      yearly: import.meta.env.VITE_RZP_PLAN_PRO_YEARLY_TEST,
+      monthly: import.meta.env.VITE_RZP_PLAN_PRO_MONTHLY,
+      yearly: import.meta.env.VITE_RZP_PLAN_PRO_YEARLY,
     },
     features: [
       "200 GB secure storage",
@@ -47,8 +47,8 @@ const PRICING_PLANS = [
     yearlyDiscount: 100,
     highlighted: false,
     rzpPlanIds: {
-      monthly: import.meta.env.VITE_RZP_PLAN_PREMIUM_MONTHLY_TEST,
-      yearly: import.meta.env.VITE_RZP_PLAN_PREMIUM_YEARLY_TEST,
+      monthly: import.meta.env.VITE_RZP_PLAN_PREMIUM_MONTHLY,
+      yearly: import.meta.env.VITE_RZP_PLAN_PREMIUM_YEARLY,
     },
     features: [
       "2 TB secure storage",
@@ -153,7 +153,9 @@ const PricingSection = ({ currentSubscription = null, onPlanSwitched }) => {
         if (subscriptionId) {
           openRazorpayPopup({ subscriptionId });
         } else {
-          console.error("Missing subscriptionId in createSubscription response");
+          console.error(
+            "Missing subscriptionId in createSubscription response",
+          );
         }
       }
     } catch (error) {

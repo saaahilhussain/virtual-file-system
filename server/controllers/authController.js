@@ -9,6 +9,8 @@ import redisClient from "../config/redis.js";
 import { z } from "zod";
 import { otpSchema } from "../validators/authValidators.js";
 
+const isProd = process.env.NODE_ENV === "production";
+
 export const sendOtp = async (req, res, next) => {
   const { success, data, error } = z
     .object({
@@ -88,6 +90,8 @@ export const loginWithGoogle = async (req, res, next) => {
       httpOnly: true,
       signed: true,
       maxAge: sessionExpiry,
+      secure: isProd,
+      sameSite: "lax",
     });
     return res.status(200).json({ message: "logged in" });
   }
@@ -154,6 +158,8 @@ export const loginWithGoogle = async (req, res, next) => {
       httpOnly: true,
       signed: true,
       maxAge: sessionExpiry,
+      secure: isProd,
+      sameSite: "lax",
     });
 
     return res.status(201).json({ message: "User Registered and logged in." });
@@ -205,6 +211,8 @@ export const loginWithGithub = async (req, res, next) => {
         httpOnly: true,
         signed: true,
         maxAge: sessionExpiry,
+        secure: isProd,
+        sameSite: "lax",
       });
       return res.status(200).json({ message: "logged in" });
     }
@@ -269,6 +277,8 @@ export const loginWithGithub = async (req, res, next) => {
         httpOnly: true,
         signed: true,
         maxAge: sessionExpiry,
+        secure: isProd,
+        sameSite: "lax",
       });
 
       return res

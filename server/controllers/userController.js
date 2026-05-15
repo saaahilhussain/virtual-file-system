@@ -5,6 +5,8 @@ import redisClient from "../config/redis.js";
 import { registerSchema, loginSchema } from "../validators/authValidators.js";
 import { z } from "zod";
 
+const isProd = process.env.NODE_ENV === "production";
+
 export const registerUser = async (req, res, next) => {
   const { success, data, error } = registerSchema.safeParse(req.body);
   if (!success) {
@@ -119,8 +121,11 @@ export const loginUser = async (req, res, next) => {
   await redisClient.expire(redisKey, sessionExpiry / 1000);
 
   res.cookie("sid", sessionId, {
+    httpOnly: true,
     signed: true,
     maxAge: sessionExpiry,
+    secure: isProd,
+    sameSite: "lax",
   });
   return res.status(200).json({ message: "logged in" });
 };

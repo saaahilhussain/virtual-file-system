@@ -1,18 +1,13 @@
 export const FREE_QUOTA_BYTES = 1 * 1024 ** 3;
 
+const GB = 1024 ** 3;
+const TB = 1024 ** 4;
+
 export const PLANS = {
-  plan_ShjMpfAfF4O0rO: {
-    maxStorageQuotaInBytes: 200 * 1024 ** 3, // 200 GB / Monthly
-  },
-  plan_Shj6gp1ZIwVX9R: {
-    maxStorageQuotaInBytes: 200 * 1024 ** 3, // 200 GB / Yearly
-  },
-  plan_Shj6H9v3zxpCqu: {
-    maxStorageQuotaInBytes: 2 * 1024 ** 4, // 2 TB / Monthly
-  },
-  plan_Shj5cTO35vELF8: {
-    maxStorageQuotaInBytes: 2 * 1024 ** 4, // 2 TB / Yearly
-  },
+  [process.env.RZP_PLAN_PRO_MONTHLY]: { maxStorageQuotaInBytes: 200 * GB },
+  [process.env.RZP_PLAN_PRO_YEARLY]: { maxStorageQuotaInBytes: 200 * GB },
+  [process.env.RZP_PLAN_PREMIUM_MONTHLY]: { maxStorageQuotaInBytes: 2 * TB },
+  [process.env.RZP_PLAN_PREMIUM_YEARLY]: { maxStorageQuotaInBytes: 2 * TB },
 };
 
 export const getQuotaForPlan = (planId) =>

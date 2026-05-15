@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --check config/plans.js)",
+      "Bash(node --check services/razorpayService.js)",
+      "Bash(node --check controllers/authController.js)",
+      "Bash(node --check controllers/userController.js)"
+    ]
+  }
+}
