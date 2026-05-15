@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { createSubscription } from "../../apis/subscriptionApi";
+import {
+  createSubscription,
+  upgradeSubscription,
+} from "../../apis/subscriptionApi";
 import { fetchUser } from "../../apis/userApi";
 
 const RAZORPAY_KEY_ID = import.meta.env.VITE_RZP_KEY_ID_TEST;
@@ -74,16 +77,25 @@ function openRazorpayPopup({ subscriptionId }) {
   });
 
   rzp.on("payment.failed", function (response) {
-    console.log(response);
+    console.error("Razorpay payment failed", response);
   });
 
   rzp.open();
 }
 
-const PricingSection = () => {
+const PricingSection = ({ currentSubscription = null, onPlanSwitched }) => {
   const [billingCycle, setBillingCycle] = useState("monthly");
+  const [busyPlanKey, setBusyPlanKey] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  const hasActiveSubscription = Boolean(currentSubscription?.planId);
+  const isSubscriptionTerminal =
+    currentSubscription?.status === "cancelled" ||
+    currentSubscription?.status === "canceled" ||
+    currentSubscription?.status === "completed" ||
+    currentSubscription?.status === "complete";
+  const canUpgrade = hasActiveSubscription && !isSubscriptionTerminal;
 
   useEffect(() => {
     const razorpayScript = document.querySelector("#razorpay-script");
@@ -96,6 +108,16 @@ const PricingSection = () => {
     document.body.appendChild(script);
   }, []);
 
+  const redirectToLogin = () => {
+    const from = `${location.pathname}${location.search}${location.hash}`;
+    navigate("/login", {
+      state: {
+        from,
+        notice: "Please log in first to buy more storage.",
+      },
+    });
+  };
+
   const handleBuyClick = async (plan) => {
     const planId = plan.rzpPlanIds?.[billingCycle];
     if (!planId) {
@@ -105,44 +127,41 @@ const PricingSection = () => {
       return;
     }
 
+    const planKey = `${plan.name}-${billingCycle}`;
+    setBusyPlanKey(planKey);
+
     try {
       await fetchUser();
     } catch (error) {
+      setBusyPlanKey(null);
       if (error.message === "Unauthorized") {
-        const from = `${location.pathname}${location.search}${location.hash}`;
-        navigate("/login", {
-          state: {
-            from,
-            notice: "Please log in first to buy more storage.",
-          },
-        });
+        redirectToLogin();
         return;
       }
-
       console.error("Failed to check auth state", error);
       return;
     }
 
     try {
-      const { subscriptionId } = await createSubscription(planId);
-      console.log(`${plan.name} clicked`);
-      if (subscriptionId) {
-        openRazorpayPopup({ subscriptionId });
+      if (canUpgrade) {
+        await upgradeSubscription(planId);
+        onPlanSwitched?.();
       } else {
-        console.error("Missing subscriptionId in createSubscription response");
+        const { subscriptionId } = await createSubscription(planId);
+        if (subscriptionId) {
+          openRazorpayPopup({ subscriptionId });
+        } else {
+          console.error("Missing subscriptionId in createSubscription response");
+        }
       }
     } catch (error) {
       if (error.message === "Unauthorized") {
-        const from = `${location.pathname}${location.search}${location.hash}`;
-        navigate("/login", {
-          state: {
-            from,
-            notice: "Please log in first to buy more storage.",
-          },
-        });
+        redirectToLogin();
         return;
       }
-      console.error("Failed to create subscription", error);
+      console.error("Subscription action failed", error);
+    } finally {
+      setBusyPlanKey(null);
     }
   };
 
@@ -154,15 +173,27 @@ const PricingSection = () => {
         const yearlyTotal = yearlyMonthlyPrice * 12;
         const monthlyEquivalent = yearlyTotal / 12;
         const yearlySavings = (monthlyPrice - yearlyMonthlyPrice) * 12;
+        const planId = plan.rzpPlanIds?.[billingCycle];
+        const isCurrent =
+          canUpgrade && planId && planId === currentSubscription?.planId;
+
+        let buyLabel = null;
+        if (plan.name === "Pro" || plan.name === "Premium") {
+          const sizeLabel = plan.name === "Pro" ? "200GB" : "2TB";
+          if (isCurrent) {
+            buyLabel = "Current plan";
+          } else if (canUpgrade) {
+            buyLabel = `Switch to ${sizeLabel}`;
+          } else {
+            buyLabel = `Choose ${sizeLabel}`;
+          }
+        }
 
         return {
           ...plan,
-          buyLabel:
-            plan.name === "Pro"
-              ? "Choose 200GB"
-              : plan.name === "Premium"
-                ? "Choose 2TB"
-                : null,
+          planId,
+          isCurrent,
+          buyLabel,
           priceLabel:
             billingCycle === "monthly"
               ? monthlyPrice === 0
@@ -183,7 +214,7 @@ const PricingSection = () => {
               : "",
         };
       }),
-    [billingCycle],
+    [billingCycle, canUpgrade, currentSubscription?.planId],
   );
 
   return (
@@ -247,74 +278,80 @@ const PricingSection = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {planCards.map((plan) => (
-          <div
-            key={plan.name}
-            className="rounded-2xl p-8 border text-center"
-            style={{
-              backgroundColor: "var(--bg-surface)",
-              borderColor: plan.highlighted
-                ? "var(--accent-black)"
-                : "var(--border-subtle)",
-              boxShadow: plan.highlighted ? "var(--shadow-float)" : "none",
-            }}
-          >
-            <p
-              className="text-base mb-2"
-              style={{ color: "var(--text-primary)" }}
-            >
-              {plan.name}
-            </p>
-            <p
-              className="text-4xl font-bold mb-4"
-              style={{ color: "var(--text-primary)" }}
-            >
-              {plan.priceLabel}
-            </p>
-            <p
-              className="text-base md:text-lg font-medium mb-4"
+        {planCards.map((plan) => {
+          const planKey = `${plan.name}-${billingCycle}`;
+          const isBusy = busyPlanKey === planKey;
+          const buttonDisabled = plan.isCurrent || isBusy;
+          return (
+            <div
+              key={plan.name}
+              className="rounded-2xl p-8 border text-center"
               style={{
-                color: "var(--text-primary)",
+                backgroundColor: "var(--bg-surface)",
+                borderColor: plan.highlighted
+                  ? "var(--accent-black)"
+                  : "var(--border-subtle)",
+                boxShadow: plan.highlighted ? "var(--shadow-float)" : "none",
               }}
             >
-              <span>{plan.billingNote}</span>
-              {plan.savingsNote ? (
-                <span className="block mt-1" style={{ color: "#2e8b57" }}>
-                  {plan.savingsNote}
-                </span>
-              ) : null}
-            </p>
-            <ul
-              className="mt-4 pt-3 border-t space-y-2 text-base md:text-[16px] leading-6 font-semibold"
-              style={{
-                color: "var(--text-secondary)",
-                borderColor: "var(--border-subtle)",
-              }}
-            >
-              {plan.features.map((feature) => (
-                <li key={feature} className="flex items-start gap-2">
-                  <span className="mt-0.5 text-[#2e8b57]" aria-hidden="true">
-                    ✓
-                  </span>
-                  <span>{feature}</span>
-                </li>
-              ))}
-            </ul>
-            {plan.buyLabel ? (
-              <button
-                type="button"
-                onClick={() => handleBuyClick(plan)}
-                className="mt-6 w-full rounded-xl px-4 py-3 text-base md:text-lg font-semibold transition-all hover:opacity-90"
+              <p
+                className="text-base mb-2"
+                style={{ color: "var(--text-primary)" }}
+              >
+                {plan.name}
+              </p>
+              <p
+                className="text-4xl font-bold mb-4"
+                style={{ color: "var(--text-primary)" }}
+              >
+                {plan.priceLabel}
+              </p>
+              <p
+                className="text-base md:text-lg font-medium mb-4"
                 style={{
-                  backgroundColor: "var(--accent-black)",
-                  color: "var(--bg-canvas)",
+                  color: "var(--text-primary)",
                 }}
               >
-                {plan.buyLabel}
-              </button>
-            ) : null}
-          </div>
-        ))}
+                <span>{plan.billingNote}</span>
+                {plan.savingsNote ? (
+                  <span className="block mt-1" style={{ color: "#2e8b57" }}>
+                    {plan.savingsNote}
+                  </span>
+                ) : null}
+              </p>
+              <ul
+                className="mt-4 pt-3 border-t space-y-2 text-base md:text-[16px] leading-6 font-semibold"
+                style={{
+                  color: "var(--text-secondary)",
+                  borderColor: "var(--border-subtle)",
+                }}
+              >
+                {plan.features.map((feature) => (
+                  <li key={feature} className="flex items-start gap-2">
+                    <span className="mt-0.5 text-[#2e8b57]" aria-hidden="true">
+                      ✓
+                    </span>
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+              {plan.buyLabel ? (
+                <button
+                  type="button"
+                  onClick={() => handleBuyClick(plan)}
+                  disabled={buttonDisabled}
+                  className="mt-6 w-full rounded-xl px-4 py-3 text-base md:text-lg font-semibold transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: "var(--accent-black)",
+                    color: "var(--bg-canvas)",
+                  }}
+                >
+                  {isBusy ? "Please wait…" : plan.buyLabel}
+                </button>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     </section>
   );

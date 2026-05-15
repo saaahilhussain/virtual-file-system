@@ -1,8 +1,20 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import PricingSection from "../components/landing/PricingSection";
+import CurrentPlanCard from "../components/landing/CurrentPlanCard";
 
 const Plans = () => {
+  const [currentSubscription, setCurrentSubscription] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const handleSubscriptionChange = (subscription) => {
+    setCurrentSubscription(subscription);
+  };
+
+  const handleSwitched = () => {
+    setReloadKey((k) => k + 1);
+  };
+
   return (
     <div
       className="min-h-screen px-4 py-10 md:py-14"
@@ -34,8 +46,16 @@ const Plans = () => {
           </p>
         </div>
 
+        <CurrentPlanCard
+          key={reloadKey}
+          onChange={handleSubscriptionChange}
+        />
+
         <div className="flex justify-center mb-14 md:mb-16">
-          <PricingSection />
+          <PricingSection
+            currentSubscription={currentSubscription}
+            onPlanSwitched={handleSwitched}
+          />
         </div>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

@@ -28,8 +28,62 @@ export const createSubscription = async (planId) => {
   });
 
   await handleFetchErrors(response);
-  const data = await response.json();
-  console.log(data);
+  return response.json();
+};
 
-  return data;
+export const getMySubscription = async () => {
+  const response = await fetch(`${BASE_URL}/subscriptions/my-plan`, {
+    credentials: "include",
+  });
+
+  await handleFetchErrors(response);
+  return response.json();
+};
+
+export const upgradeSubscription = async (planId) => {
+  const response = await fetch(`${BASE_URL}/subscriptions/upgrade`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ planId }),
+    credentials: "include",
+  });
+
+  await handleFetchErrors(response);
+  return response.json();
+};
+
+export const pauseSubscription = async () => {
+  const response = await fetch(`${BASE_URL}/subscriptions/pause`, {
+    method: "POST",
+    credentials: "include",
+  });
+
+  await handleFetchErrors(response);
+  return response.json();
+};
+
+export const resumeSubscription = async () => {
+  const response = await fetch(`${BASE_URL}/subscriptions/resume`, {
+    method: "POST",
+    credentials: "include",
+  });
+
+  await handleFetchErrors(response);
+  return response.json();
+};
+
+export const cancelSubscription = async ({ cancelAtCycleEnd = true } = {}) => {
+  const response = await fetch(`${BASE_URL}/subscriptions/cancel`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ cancelAtCycleEnd }),
+    credentials: "include",
+  });
+
+  await handleFetchErrors(response);
+  return response.json();
 };

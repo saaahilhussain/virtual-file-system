@@ -1,23 +1,20 @@
 import express from "express";
 import {
-  //   cancelSubscription,
+  cancelSubscription,
   createSubscription,
-  //   getSubscriptionDetails,
-  //   pauseSubscription,
-  //   upgradeSubscription,
-  //   webhook,
+  getSubscriptionDetails,
+  pauseSubscription,
+  resumeSubscription,
+  upgradeSubscription,
 } from "../controllers/subscriptionController.js";
 
 const router = express.Router();
 
-// router.get("/my-plan", getSubscriptionDetails);
-
+router.get("/my-plan", getSubscriptionDetails);
 router.post("/create", createSubscription);
-
-// router.post("/upgrade", upgradeSubscription);
-
-// router.post("/pause", pauseSubscription);
-
-// router.post("/cancel", cancelSubscription);
+router.post("/upgrade", upgradeSubscription);
+router.post("/pause", pauseSubscription);
+router.post("/resume", resumeSubscription);
+router.post("/cancel", cancelSubscription);
 
 export default router;

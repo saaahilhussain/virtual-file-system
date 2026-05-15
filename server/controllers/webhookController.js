@@ -1,24 +1,16 @@
 import Razorpay from "razorpay";
 import Subscription from "../models/subscriptionModel.js";
 import User from "../models/userModel.js";
-// const LIVE_PLANS = {
-//     //
-// }
+import { FREE_QUOTA_BYTES, getQuotaForPlan } from "../config/plans.js";
 
-const TEST_PLANS = {
-  plan_ShjMpfAfF4O0rO: {
-    maxStorageQuotaInBytes: 200 * 1024 ** 3, // 200 gb/M
-  },
-  plan_Shj6gp1ZIwVX9R: {
-    maxStorageQuotaInBytes: 200 * 1024 ** 3, // 200 gb/Y
-  },
+const findSubscription = (rzpId) =>
+  Subscription.findOne({ razorpaySubscriptionId: rzpId });
 
-  plan_Shj6H9v3zxpCqu: {
-    maxStorageQuotaInBytes: 2 * 1024 ** 4, // 2 tb/M
-  },
-  plan_Shj5cTO35vELF8: {
-    maxStorageQuotaInBytes: 2 * 1024 ** 4, // 2 tb/Y
-  },
+const setUserQuota = async (userId, bytes) => {
+  const user = await User.findById(userId);
+  if (!user) return;
+  user.maxStorageInBytes = bytes;
+  await user.save();
 };
 
 export const webhookController = async (req, res, next) => {
@@ -30,31 +22,66 @@ export const webhookController = async (req, res, next) => {
       process.env.WEBHOOK_SECRET,
     );
 
-    if (isSignatureValid) {
-      if (req.body.event === "subscription.charged") {
-        const rzpSubscription = req.body.payload.subscription.entity;
-        const planId = rzpSubscription.plan_id;
-        // 1. Update subscription status from "created" to --> "active"
-
-        const subscription = await Subscription.findOne({
-          razorpaySubscriptionId: rzpSubscription.id,
-        });
-
-        subscription.status = rzpSubscription.status;
-        await subscription.save();
-
-        // 2. Increase storage quota for user
-        const purchasedStorageQuota = TEST_PLANS[planId].maxStorageQuotaInBytes;
-
-        const user = await User.findById(subscription.userId);
-        user.maxStorageInBytes = purchasedStorageQuota;
-        await user.save();
-
-        return res.json({ message: "OK" });
-      }
-    } else {
+    if (!isSignatureValid) {
       return res.status(400).json({ error: "Invalid Signature" });
     }
+
+    const event = req.body.event;
+    const rzpSubscription = req.body.payload?.subscription?.entity;
+
+    if (!rzpSubscription) {
+      return res.json({ received: true });
+    }
+
+    const subscription = await findSubscription(rzpSubscription.id);
+    if (!subscription) {
+      return res.json({ received: true });
+    }
+
+    switch (event) {
+      case "subscription.charged": {
+        subscription.status = rzpSubscription.status;
+        subscription.planId = rzpSubscription.plan_id;
+        await subscription.save();
+        await setUserQuota(
+          subscription.userId,
+          getQuotaForPlan(rzpSubscription.plan_id),
+        );
+        break;
+      }
+
+      case "subscription.updated": {
+        subscription.status = rzpSubscription.status;
+        subscription.planId = rzpSubscription.plan_id;
+        await subscription.save();
+        await setUserQuota(
+          subscription.userId,
+          getQuotaForPlan(rzpSubscription.plan_id),
+        );
+        break;
+      }
+
+      case "subscription.cancelled":
+      case "subscription.completed": {
+        subscription.status = rzpSubscription.status;
+        await subscription.save();
+        await setUserQuota(subscription.userId, FREE_QUOTA_BYTES);
+        break;
+      }
+
+      case "subscription.paused":
+      case "subscription.resumed":
+      case "subscription.halted": {
+        subscription.status = rzpSubscription.status;
+        await subscription.save();
+        break;
+      }
+
+      default:
+        break;
+    }
+
+    return res.json({ received: true });
   } catch (error) {
     next(error);
   }
