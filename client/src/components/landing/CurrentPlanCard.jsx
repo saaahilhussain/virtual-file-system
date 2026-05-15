@@ -111,14 +111,15 @@ const CurrentPlanCard = ({ onChange }) => {
     load();
   }, []);
 
-  if (loading || !subscription) return null;
-
-  const status = subscription.status;
-  const statusLabel = STATUS_COPY[status] || status;
-  const nextBilling = formatRzpDate(subscription.chargeAt || subscription.currentEnd);
+  const status = subscription?.status;
+  const statusLabel = (status && STATUS_COPY[status]) || status || "";
+  const nextBilling = subscription
+    ? formatRzpDate(subscription.chargeAt || subscription.currentEnd)
+    : null;
   const isPaused = status === "paused";
   const isCancelled = status === "cancelled" || status === "canceled";
   const isTerminal = isCancelled || status === "completed" || status === "complete";
+  const open = loading || Boolean(subscription);
 
   const runAction = async (action) => {
     setActionBusy(true);
@@ -139,7 +140,40 @@ const CurrentPlanCard = ({ onChange }) => {
   return (
     <>
       <div
-        className="rounded-2xl p-6 md:p-8 border mb-10"
+        className="overflow-hidden"
+        style={{
+          maxHeight: open ? "1000px" : "0px",
+          opacity: open ? 1 : 0,
+          marginBottom: open ? "2.5rem" : "0px",
+          transition:
+            "max-height 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 240ms ease-out, margin-bottom 320ms cubic-bezier(0.16, 1, 0.3, 1)",
+        }}
+      >
+      {loading ? (
+        <div
+          className="rounded-2xl p-6 md:p-8 border flex items-center justify-center gap-3"
+          style={{
+            backgroundColor: "var(--bg-surface)",
+            borderColor: "var(--border-subtle)",
+            boxShadow: "var(--shadow-float)",
+            minHeight: "112px",
+          }}
+        >
+          <span
+            aria-hidden="true"
+            className="inline-block h-4 w-4 rounded-full border-2 border-current border-r-transparent animate-spin"
+            style={{ color: "var(--text-tertiary)" }}
+          />
+          <span
+            className="text-sm font-medium"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            Loading your current plan…
+          </span>
+        </div>
+      ) : subscription ? (
+      <div
+        className="rounded-2xl p-6 md:p-8 border"
         style={{
           backgroundColor: "var(--bg-surface)",
           borderColor: "var(--border-subtle)",
@@ -240,6 +274,8 @@ const CurrentPlanCard = ({ onChange }) => {
             </div>
           ) : null}
         </div>
+      </div>
+      ) : null}
       </div>
 
       {confirm === "pause" ? (

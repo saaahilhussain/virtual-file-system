@@ -86,6 +86,7 @@ function openRazorpayPopup({ subscriptionId }) {
 const PricingSection = ({ currentSubscription = null, onPlanSwitched }) => {
   const [billingCycle, setBillingCycle] = useState("monthly");
   const [busyPlanKey, setBusyPlanKey] = useState(null);
+  const [noticeMessage, setNoticeMessage] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -129,6 +130,7 @@ const PricingSection = ({ currentSubscription = null, onPlanSwitched }) => {
 
     const planKey = `${plan.name}-${billingCycle}`;
     setBusyPlanKey(planKey);
+    setNoticeMessage("");
 
     try {
       await fetchUser();
@@ -157,6 +159,10 @@ const PricingSection = ({ currentSubscription = null, onPlanSwitched }) => {
     } catch (error) {
       if (error.message === "Unauthorized") {
         redirectToLogin();
+        return;
+      }
+      if (error.code === "UPI_UPGRADE_NOT_SUPPORTED") {
+        setNoticeMessage(error.message);
         return;
       }
       console.error("Subscription action failed", error);
@@ -230,6 +236,37 @@ const PricingSection = ({ currentSubscription = null, onPlanSwitched }) => {
           Start free and upgrade when your storage and collaboration needs grow.
         </p>
       </div>
+
+      {noticeMessage ? (
+        <div
+          role="status"
+          className="mx-auto mb-8 max-w-2xl rounded-2xl border px-5 py-4 flex items-start gap-3"
+          style={{
+            backgroundColor: "var(--bg-surface)",
+            borderColor: "var(--border-subtle)",
+            color: "var(--text-primary)",
+            boxShadow: "var(--shadow-float)",
+          }}
+        >
+          <span
+            aria-hidden="true"
+            className="mt-0.5 text-lg"
+            style={{ color: "#b06b00" }}
+          >
+            ⚠
+          </span>
+          <p className="flex-1 text-sm leading-relaxed">{noticeMessage}</p>
+          <button
+            type="button"
+            onClick={() => setNoticeMessage("")}
+            aria-label="Dismiss notice"
+            className="text-sm font-semibold"
+            style={{ color: "var(--text-tertiary)" }}
+          >
+            ✕
+          </button>
+        </div>
+      ) : null}
 
       <div className="flex justify-center mb-10">
         <div

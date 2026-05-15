@@ -6,13 +6,17 @@ const BASE_URL = import.meta.env.VITE_BACKEND_BASE_URI;
 async function handleFetchErrors(response) {
   if (!response.ok) {
     let errMsg = `Request failed with status ${response.status}`;
+    let code = null;
     try {
       const data = await response.json();
       if (data.error) errMsg = data.error;
+      if (data.code) code = data.code;
     } catch (_) {
       // If JSON parsing fails, default errMsg stays
     }
-    throw new Error(errMsg);
+    const err = new Error(errMsg);
+    if (code) err.code = code;
+    throw err;
   }
   return response;
 }
