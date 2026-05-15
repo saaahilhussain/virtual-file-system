@@ -114,10 +114,14 @@ export const upgradeSubscription = async (req, res, next) => {
     res.json({ subscription });
   } catch (error) {
     const description = error?.error?.description?.toLowerCase() ?? "";
-    if (error?.statusCode === 400 && description.includes("payment mode is upi")) {
+    const isPaymentModeUpi = description.includes("payment mode is upi");
+    const isStateNotUpdatable = description.includes(
+      "not in authenticated or active state",
+    );
+    if (error?.statusCode === 400 && (isPaymentModeUpi || isStateNotUpdatable)) {
       return res.status(409).json({
         error:
-          "Your UPI subscription can't be switched in place. Please cancel your current plan and choose the new tier — you'll keep access until your current cycle ends.",
+          "Your current subscription can't be switched in place. Please cancel your current plan and choose the new tier — you'll keep access until your current cycle ends.",
         code: "UPI_UPGRADE_NOT_SUPPORTED",
       });
     }
