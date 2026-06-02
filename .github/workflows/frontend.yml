@@ -1,8 +1,11 @@
-name: CI/CD Pipeline
+name: ci/cd frontend
 on:
   push:
     branches:
       - main
+    paths:
+      - "client/**"
+      - ".github/workflows/frontend-deploy.yml"
 
   workflow_dispatch:
 
