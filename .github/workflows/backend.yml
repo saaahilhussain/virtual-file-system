@@ -1,0 +1,56 @@
+name: Backend Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "server/**"
+      - ".github/workflows/backend.yml"
+
+  workflow_dispatch:
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      REMOTE_REPO_DIR: ${{ secrets.REMOTE_REPO_DIR }}
+      BACKEND_DIR: ${{ secrets.BACKEND_DIR }}
+      PM2_APP_NAME: ${{ secrets.PM2_APP_NAME }}
+
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+
+          chmod 600 ~/.ssh/id_rsa
+
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy Backend
+        run: |
+          ssh "${SSH_USER}@${SSH_HOST}" << EOF
+            set -e
+
+            echo "Moving to repository..."
+            cd "$REMOTE_REPO_DIR"
+
+            echo "Pulling latest code..."
+            git pull origin main
+
+            echo "Moving to backend..."
+            cd "$BACKEND_DIR"
+
+            echo "Installing dependencies..."
+            npm ci --no-audit --no-fund
+
+            echo "Restarting PM2..."
+            pm2 restart "$PM2_APP_NAME"
+
+            echo "Backend deployed successfully."
+          EOF
