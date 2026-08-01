@@ -124,6 +124,34 @@ export async function logoutAllSessions() {
 }
 
 /**
+ * Update the current user's password
+ */
+export async function updatePassword(payload) {
+  const res = await fetch(`${BASE_URL}/user/password`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+    credentials: "include",
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    const message =
+      typeof data.error === "string"
+        ? data.error
+        : data.error
+          ? "Failed to update password"
+          : "Failed to update password";
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+/**
  * Logout a specific user by ID (admin only)
  */
 export async function logoutUserById(id) {

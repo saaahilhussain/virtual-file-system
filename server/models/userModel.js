@@ -27,6 +27,15 @@ const userSchema = new Schema({
     type: String,
     minLength: 6,
   },
+  authProviders: {
+    type: [
+      {
+        type: String,
+        enum: ["local", "google", "github"],
+      },
+    ],
+    default: ["local"],
+  },
   picture: {
     type: String,
     default:
@@ -64,10 +73,12 @@ const userSchema = new Schema({
 
 userSchema.pre("save", async function () {
   if (!this.isModified("password")) return; // suppose user only changed his name, then early return old password hash
+  if (!this.password) return;
   this.password = await bcrypt.hash(this.password, 12);
 });
 
 userSchema.methods.comparePassword = async function (candidatePassword) {
+  if (!this.password || !candidatePassword) return false;
   return bcrypt.compare(candidatePassword, this.password);
 };
 

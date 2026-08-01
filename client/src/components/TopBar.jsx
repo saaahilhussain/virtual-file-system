@@ -33,9 +33,15 @@ function TopBar({
   const [userName, setUserName] = useState("Guest User");
   const [userEmail, setUserEmail] = useState("guest@example.com");
   const [userPicture, setUserPicture] = useState("");
+  const [userHasPassword, setUserHasPassword] = useState(false);
+  const [userAuthProviders, setUserAuthProviders] = useState([]);
 
   const userMenuRef = useRef(null);
   const navigate = useNavigate();
+  const profileMenuLabel =
+    userHasPassword || !userAuthProviders.some((provider) => provider !== "local")
+      ? "Profile & Security"
+      : "Set password";
 
   // Fetch user info on mount
   useEffect(() => {
@@ -49,10 +55,15 @@ function TopBar({
           setUserName(data.name);
           setUserEmail(data.email);
           setUserPicture(data.picture);
+          setUserHasPassword(Boolean(data.hasPassword));
+          setUserAuthProviders(Array.isArray(data.authProviders) ? data.authProviders : []);
           setLoggedIn(true);
         } else if (response.status === 401) {
           setUserName("Guest User");
           setUserEmail("guest@example.com");
+          setUserPicture("");
+          setUserHasPassword(false);
+          setUserAuthProviders([]);
           setLoggedIn(false);
         } else {
           console.error("Error fetching user info:", response.status);
@@ -78,6 +89,9 @@ function TopBar({
         setLoggedIn(false);
         setUserName("Guest User");
         setUserEmail("guest@example.com");
+        setUserPicture("");
+        setUserHasPassword(false);
+        setUserAuthProviders([]);
         navigate("/login");
       } else {
         console.error("Logout failed");
@@ -99,6 +113,9 @@ function TopBar({
         setLoggedIn(false);
         setUserName("Guest User");
         setUserEmail("guest@example.com");
+        setUserPicture("");
+        setUserHasPassword(false);
+        setUserAuthProviders([]);
         navigate("/login");
       } else {
         console.error("Logout failed");
@@ -255,6 +272,30 @@ function TopBar({
                 <div className="profile-menu-email">{userEmail}</div>
               </div>
               <div className="profile-menu-body">
+                <a
+                  href="#"
+                  className="profile-menu-item"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate("/profile");
+                    setShowUserMenu(false);
+                  }}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="12" cy="8" r="4" />
+                      <path d="M4 20a8 8 0 0 1 16 0" />
+                    </svg>
+                  <span>{profileMenuLabel}</span>
+                </a>
                 <a
                   href="#"
                   className="profile-menu-item"

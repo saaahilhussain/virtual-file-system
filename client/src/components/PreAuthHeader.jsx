@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import BrandMark from "./BrandMark";
 
 const PreAuthHeader = () => {
   const navigate = useNavigate();
@@ -63,16 +64,7 @@ const PreAuthHeader = () => {
         className="flex items-center gap-2 cursor-pointer transition-transform hover:scale-105"
         onClick={handleBrandClick}
       >
-        <div
-          className="w-3 h-3 rounded-full"
-          style={{ backgroundColor: "var(--accent-black)" }}
-        ></div>
-        <span
-          className="text-xl font-bold font-['Outfit']"
-          style={{ color: "var(--text-primary)" }}
-        >
-          File Shelter
-        </span>
+        <BrandMark text="FileShelter" size={36} />
       </div>
 
       {location.pathname === "/" && (

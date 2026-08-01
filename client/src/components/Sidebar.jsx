@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import BrandMark from "./BrandMark";
 
 function Sidebar({
   onCreateFolderClick,
@@ -41,8 +42,7 @@ function Sidebar({
   return (
     <div className={`sidebar${isOpen ? " sidebar-open" : ""}`}>
       <div className="brand">
-        <div className="brand-dot"></div>
-        FileShelter
+        <BrandMark text="FileShelter" size={32} />
       </div>
 
       <div className="nav-group">

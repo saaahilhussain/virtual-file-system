@@ -5,11 +5,18 @@ const otpSchema = new Schema({
     type: String,
     required: true,
   },
-  otp: {
+  purpose: {
     type: String,
-    minLength: [4, "OTP must be 4 digits"],
-    maxLength: [4, "OTP must be 4 digits"],
+    enum: ["registration", "password_reset"],
     required: true,
+  },
+  codeHash: {
+    type: String,
+    required: true,
+  },
+  attempts: {
+    type: Number,
+    default: 0,
   },
   createdAt: {
     type: Date,
@@ -17,6 +24,8 @@ const otpSchema = new Schema({
     expires: 600,
   },
 });
+
+otpSchema.index({ email: 1, purpose: 1 }, { unique: true });
 
 const Otp = model("Otp", otpSchema);
 

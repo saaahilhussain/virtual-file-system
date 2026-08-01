@@ -2,10 +2,36 @@ import mongoose, { Types } from "mongoose";
 import User from "../models/userModel.js";
 import Directory from "../models/directoryModel.js";
 import redisClient from "../config/redis.js";
-import { registerSchema, loginSchema } from "../validators/authValidators.js";
+import {
+  registerSchema,
+  loginSchema,
+  passwordUpdateSchema,
+} from "../validators/authValidators.js";
 import { z } from "zod";
 
 const isProd = process.env.NODE_ENV === "production";
+
+function getEffectiveAuthProviders(user) {
+  const providers = new Set(
+    Array.isArray(user.authProviders) ? user.authProviders : [],
+  );
+
+  if (!providers.size && user.password) {
+    providers.add("local");
+  }
+
+  if (!providers.size && !user.password) {
+    if (typeof user.picture === "string") {
+      if (user.picture.includes("googleusercontent.com")) {
+        providers.add("google");
+      } else if (user.picture.includes("githubusercontent.com")) {
+        providers.add("github");
+      }
+    }
+  }
+
+  return [...providers];
+}
 
 export const registerUser = async (req, res, next) => {
   const { success, data, error } = registerSchema.safeParse(req.body);
@@ -50,6 +76,7 @@ export const registerUser = async (req, res, next) => {
           name,
           email,
           password,
+          authProviders: ["local"],
           rootDirId,
           role: "user",
           isDeleted: false,
@@ -58,11 +85,11 @@ export const registerUser = async (req, res, next) => {
       { session },
     );
 
-    session.commitTransaction();
+    await session.commitTransaction();
     return res.status(201).json({ message: "User Registered" });
   } catch (err) {
+    await session.abortTransaction();
     if (err.code === 121) {
-      session.abortTransaction();
       res
         .status(400)
         .json({ error: "Invalid input, please enter valid details" });
@@ -141,9 +168,54 @@ export const getUser = async (req, res) => {
     name: user.name,
     email: user.email,
     picture: user.picture,
+    authProviders: getEffectiveAuthProviders(user),
+    hasPassword: Boolean(user.password),
     usedStorage: rootDirectory?.size || 0,
     maxStorage: user.maxStorageInBytes,
     role: user.role,
+  });
+};
+
+export const updatePassword = async (req, res) => {
+  const { success, data, error } = passwordUpdateSchema.safeParse(req.body);
+  if (!success) {
+    return res.status(400).json({ error: z.flattenError(error).fieldErrors });
+  }
+
+  const { currentPassword, newPassword } = data;
+  const user = await User.findById(req.user._id);
+
+  if (!user || user.isDeleted) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  if (user.password) {
+    if (!currentPassword) {
+      return res
+        .status(400)
+        .json({
+          error: "Current password is required to change your password.",
+        });
+    }
+
+    const isCurrentPasswordValid = await user.comparePassword(currentPassword);
+    if (!isCurrentPasswordValid) {
+      return res.status(400).json({ error: "Current password is incorrect." });
+    }
+  }
+
+  user.password = newPassword;
+
+  const providers = new Set(getEffectiveAuthProviders(user));
+  providers.add("local");
+  user.authProviders = [...providers];
+
+  await user.save();
+
+  return res.status(200).json({
+    message: "Password updated successfully.",
+    hasPassword: true,
+    authProviders: user.authProviders,
   });
 };
 

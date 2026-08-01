@@ -8,10 +8,13 @@ import LandingPage from "./pages/LandingPage";
 import DirectoryView from "./pages/DirectoryView";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
 import Plans from "./pages/Plans";
 import TrashView from "./pages/TrashView";
 import UsersView from "./pages/UsersView";
 import GitHubCallback from "./pages/GitHubCallback";
+import Profile from "./pages/Profile";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import { fetchUser } from "./apis/userApi";
 
 function RoleGuard({ children }) {
@@ -58,8 +61,11 @@ const router = createBrowserRouter([
   { path: "/app", element: <DirectoryView /> },
   { path: "/register", element: <Register /> },
   { path: "/login", element: <Login /> },
+  { path: "/forgot-password", element: <ForgotPassword /> },
   { path: "/app/directory/:dirId", element: <DirectoryView /> },
   { path: "/trash", element: <TrashView /> },
+  { path: "/profile", element: <Profile /> },
+  { path: "/privacy", element: <PrivacyPolicy /> },
   {
     path: "/users",
     element: (

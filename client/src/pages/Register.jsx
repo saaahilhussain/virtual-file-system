@@ -7,6 +7,7 @@ import { GithubLogin } from "../components/GithubLogin";
 import { loginWithGithub } from "../apis/loginWithGithub";
 import { sendOtp, verifyOtp } from "../apis/authApi";
 import { registerUser } from "../apis/userApi";
+import BrandMark from "../components/BrandMark";
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -144,10 +145,7 @@ const Register = () => {
       <div className="auth-container">
         {/* Brand */}
         <div className="brand-container">
-          <div className="brand">
-            <div className="brand-dot" />
-            FileShelter
-          </div>
+          <BrandMark text="FileShelter" size={36} />
         </div>
 
         {/* Form Header */}
@@ -225,8 +223,8 @@ const Register = () => {
                   name="otp"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value)}
-                  placeholder="4-digit OTP"
-                  maxLength={4}
+                  placeholder="6-digit OTP"
+                  maxLength={6}
                   required
                 />
                 {otpVerified ? (

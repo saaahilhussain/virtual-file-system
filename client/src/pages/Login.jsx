@@ -6,6 +6,7 @@ import PreAuthHeader from "../components/PreAuthHeader";
 import { GithubLogin } from "../components/GithubLogin";
 import { loginWithGithub } from "../apis/loginWithGithub";
 import { loginUser } from "../apis/userApi";
+import BrandMark from "../components/BrandMark";
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -59,10 +60,7 @@ const Login = () => {
       <div className="auth-container">
         {/* Brand */}
         <div className="brand-container">
-          <div className="brand">
-            <div className="brand-dot" />
-            FileShelter
-          </div>
+          <BrandMark text="FileShelter" size={36} />
         </div>
 
         {/* Form Header */}
@@ -121,6 +119,10 @@ const Login = () => {
             {serverError && (
               <span className="auth-error-text">{serverError}</span>
             )}
+          </div>
+
+          <div className="forgot-password-link">
+            <Link to="/forgot-password">Forgot password?</Link>
           </div>
 
           <button type="submit" className="auth-submit-btn">

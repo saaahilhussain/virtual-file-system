@@ -1,3 +1,5 @@
+import BrandMark from "../BrandMark";
+
 const PreviewSection = () => {
   return (
     <section
@@ -36,16 +38,7 @@ const PreviewSection = () => {
             }}
           >
             <div className="flex items-center gap-2 mb-8">
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: "var(--accent-black)" }}
-              ></div>
-              <div
-                className="font-semibold text-sm"
-                style={{ color: "var(--text-primary)" }}
-              >
-                FileShelter
-              </div>
+              <BrandMark text="FileShelter" size={24} />
             </div>
             <div className="flex flex-col gap-2">
               <div

@@ -1,3 +1,6 @@
+import { Link } from "react-router-dom";
+import BrandMark from "../BrandMark";
+
 const LandingFooter = () => {
   return (
     <footer
@@ -7,16 +10,7 @@ const LandingFooter = () => {
       <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-10 text-left">
         <div>
           <div className="flex items-center gap-2 mb-4">
-            <div
-              className="w-2.5 h-2.5 rounded-full"
-              style={{ backgroundColor: "var(--accent-black)" }}
-            ></div>
-            <span
-              className="text-lg font-semibold font-['Outfit']"
-              style={{ color: "var(--text-primary)" }}
-            >
-              File Shelter
-            </span>
+            <BrandMark text="File Shelter" size={30} />
           </div>
           <p
             className="text-base max-w-xs"
@@ -70,7 +64,13 @@ const LandingFooter = () => {
         }}
       >
         <p>© {new Date().getFullYear()} File Shelter. All rights reserved.</p>
-        <p>Privacy • Terms • Security</p>
+        <p className="landing-footer-links">
+          <Link to="/privacy">Privacy Policy</Link>
+          <span>·</span>
+          <span>Terms</span>
+          <span>·</span>
+          <span>Security</span>
+        </p>
       </div>
     </footer>
   );

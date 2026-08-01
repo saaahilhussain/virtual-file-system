@@ -36,6 +36,12 @@ try {
             bsonType: "string",
             minLength: 4,
           },
+          authProviders: {
+            bsonType: "array",
+            items: {
+              enum: ["local", "google", "github"],
+            },
+          },
           picture: {
             bsonType: "string",
             minLength: 4,
