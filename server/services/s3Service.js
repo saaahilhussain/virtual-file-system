@@ -43,7 +43,7 @@ export const createSignedGetUrl = async ({
 };
 
 export const getFileMetaData = async (Key) => {
-  const command = new HeadObjectCommand({ Bucket: "sahil-h-storage-app", Key });
+  const command = new HeadObjectCommand({ Bucket, Key });
 
   return s3Client.send(command);
 };
