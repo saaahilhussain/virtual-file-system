@@ -2,14 +2,38 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import TopBar from "../components/TopBar";
-import { fetchUser, updatePassword } from "../apis/userApi";
+import {
+  fetchUser,
+  logoutAllSessions,
+  updatePassword,
+} from "../apis/userApi";
+
+const PROVIDER_DETAILS = {
+  local: {
+    label: "Email & password",
+    mark: "@",
+    description: "Use your email address and password to sign in.",
+  },
+  google: {
+    label: "Google",
+    mark: "G",
+    description: "Connected Google account.",
+  },
+  github: {
+    label: "GitHub",
+    mark: "GH",
+    description: "Connected GitHub account.",
+  },
+};
 
 function Profile() {
   const navigate = useNavigate();
-
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [user, setUser] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -25,24 +49,20 @@ function Profile() {
     async function loadUser() {
       try {
         const data = await fetchUser();
-        if (!active) return;
-        setUser(data);
+        if (active) setUser(data);
       } catch (error) {
         if (!active) return;
         if (error.message === "Unauthorized") {
           navigate("/login");
           return;
         }
-        setErrorMessage(error.message || "Failed to load profile.");
+        setErrorMessage(error.message || "Failed to load account settings.");
       } finally {
-        if (active) {
-          setLoading(false);
-        }
+        if (active) setLoading(false);
       }
     }
 
     loadUser();
-
     return () => {
       active = false;
     };
@@ -52,38 +72,30 @@ function Profile() {
     ? user.authProviders
     : [];
   const hasPassword = Boolean(user?.hasPassword);
-  const isSocialAccount = authProviders.some((provider) => provider !== "local");
-  const needsCurrentPassword = hasPassword;
-  const title = hasPassword ? "Change password" : "Set password";
-  const subtitle = hasPassword
-    ? "Update the password tied to this account."
-    : "Add a password so you can use email and password sign-in too.";
+  const passwordActionLabel = hasPassword ? "Change password" : "Set password";
+  const connectedProviders = authProviders
+    .filter((provider) => PROVIDER_DETAILS[provider])
+    .map((provider) => ({ id: provider, ...PROVIDER_DETAILS[provider] }));
 
-  const profileBadges = [];
+  const resetPasswordForm = () => {
+    setFormData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  };
 
-  if (authProviders.includes("google")) {
-    profileBadges.push("Google");
-  }
-  if (authProviders.includes("github")) {
-    profileBadges.push("GitHub");
-  }
-  if (authProviders.includes("local")) {
-    profileBadges.push("Email/password");
-  }
+  const openPasswordForm = () => {
+    setErrorMessage("");
+    setSuccessMessage("");
+    setShowPasswordForm(true);
+  };
 
-  if (profileBadges.length === 0) {
-    profileBadges.push("Unknown");
-  }
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setFormData((previous) => ({ ...previous, [name]: value }));
     if (errorMessage) setErrorMessage("");
     if (successMessage) setSuccessMessage("");
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handlePasswordSubmit = async (event) => {
+    event.preventDefault();
     setErrorMessage("");
     setSuccessMessage("");
 
@@ -92,7 +104,7 @@ function Profile() {
       return;
     }
 
-    if (needsCurrentPassword && !formData.currentPassword) {
+    if (hasPassword && !formData.currentPassword) {
       setErrorMessage("Current password is required.");
       return;
     }
@@ -100,25 +112,35 @@ function Profile() {
     try {
       setSaving(true);
       const response = await updatePassword(formData);
-      setUser((prev) =>
-        prev
+      setUser((previous) =>
+        previous
           ? {
-              ...prev,
+              ...previous,
               hasPassword: true,
-              authProviders: response.authProviders || prev.authProviders,
+              authProviders: response.authProviders || previous.authProviders,
             }
-          : prev,
+          : previous,
       );
-      setFormData({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
+      resetPasswordForm();
+      setShowPasswordForm(false);
       setSuccessMessage(response.message || "Password updated successfully.");
     } catch (error) {
       setErrorMessage(error.message || "Failed to update password.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleLogoutAll = async () => {
+    try {
+      setSigningOut(true);
+      await logoutAllSessions();
+      navigate("/login");
+    } catch (error) {
+      setShowSignOutConfirm(false);
+      setErrorMessage(error.message || "Failed to sign out of all devices.");
+    } finally {
+      setSigningOut(false);
     }
   };
 
@@ -142,17 +164,16 @@ function Profile() {
         <TopBar
           searchPlaceholder="Search settings..."
           hideUpload={true}
-          onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+          onToggleSidebar={() => setSidebarOpen((previous) => !previous)}
         />
 
-        <div className="content-scroll profile-content-scroll">
-          <div className="profile-hero">
+        <div className="content-scroll account-settings-content">
+          <div className="account-settings-hero">
             <div>
-              <p className="profile-eyebrow">Account security</p>
-              <h1 className="profile-title">{title}</h1>
-              <p className="profile-subtitle">{subtitle}</p>
+              <p className="account-settings-eyebrow">Account settings</p>
+              <h1>Profile & security</h1>
+              <p>Manage how you sign in and keep your account secure.</p>
             </div>
-
             <button
               type="button"
               className="profile-back-btn"
@@ -163,138 +184,218 @@ function Profile() {
           </div>
 
           {errorMessage && <div className="error-banner">{errorMessage}</div>}
+          {successMessage && (
+            <div className="profile-success" role="status">
+              {successMessage}
+            </div>
+          )}
 
-          <div className="profile-grid">
-            <section className="profile-card profile-summary-card">
-              <div className="profile-avatar">
-                {user?.picture ? (
-                  <img src={user.picture} alt={user?.name || "Profile"} />
-                ) : (
-                  <span>{user?.name?.charAt(0)?.toUpperCase() || "U"}</span>
-                )}
-              </div>
-
-              <div className="profile-summary-text">
-                <h2>{user?.name || "Account"}</h2>
-                <p>{user?.email || "Loading account..."}</p>
-              </div>
-
-              <div className="profile-badge-list">
-                {profileBadges.map((badge) => (
-                  <span key={badge} className="profile-badge">
-                    {badge}
-                  </span>
-                ))}
-              </div>
-
-              <div className="profile-meta-grid">
+          <div className="account-settings-stack">
+            <section className="account-settings-card account-identity-card">
+              <div className="account-section-heading">
                 <div>
-                  <span className="profile-meta-label">Password status</span>
-                  <strong>{hasPassword ? "Set" : "Not set"}</strong>
+                  <p className="account-section-kicker">Account</p>
+                  <h2>Your identity</h2>
+                  <p>Your account details are used across File Shelter.</p>
+                </div>
+              </div>
+              <div className="account-identity-body">
+                <div className="profile-avatar account-identity-avatar">
+                  {user?.picture ? (
+                    <img src={user.picture} alt={user?.name || "Profile"} />
+                  ) : (
+                    <span>{user?.name?.charAt(0)?.toUpperCase() || "U"}</span>
+                  )}
                 </div>
                 <div>
-                  <span className="profile-meta-label">Connected login</span>
-                  <strong>{isSocialAccount ? "Social account" : "Local account"}</strong>
+                  <h3>{user?.name || "Your account"}</h3>
+                  <p>{user?.email || "Loading account details..."}</p>
                 </div>
               </div>
             </section>
 
-            <section className="profile-card profile-form-card">
-              <div className="profile-card-header">
+            <section className="account-settings-card">
+              <div className="account-section-heading">
                 <div>
-                  <h2>Security settings</h2>
-                  <p>
-                    {hasPassword
-                      ? "Use this form to update your password."
-                      : "Create a password for direct email login."}
-                  </p>
+                  <p className="account-section-kicker">Access</p>
+                  <h2>Sign-in methods</h2>
+                  <p>These are the secure methods currently connected to your account.</p>
                 </div>
               </div>
-
-              <form className="profile-form" onSubmit={handleSubmit}>
-                {needsCurrentPassword && (
-                  <div className="auth-input-group">
-                    <label htmlFor="currentPassword" className="auth-input-label">
-                      Current Password
-                    </label>
-                    <input
-                      id="currentPassword"
-                      name="currentPassword"
-                      type="password"
-                      className="auth-input-field"
-                      value={formData.currentPassword}
-                      onChange={handleChange}
-                      placeholder="Enter current password"
-                      disabled={loading}
-                    />
-                  </div>
+              <div className="account-provider-list">
+                {connectedProviders.length ? (
+                  connectedProviders.map((provider) => (
+                    <div className="account-provider-row" key={provider.id}>
+                      <span className={`account-provider-icon ${provider.id}`}>
+                        {provider.mark}
+                      </span>
+                      <div className="account-provider-copy">
+                        <strong>{provider.label}</strong>
+                        <span>{provider.id === "local" && !hasPassword
+                          ? "No password set yet."
+                          : provider.description}</span>
+                      </div>
+                      <span className="account-status-pill">Connected</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="account-empty-state">No sign-in methods found.</p>
                 )}
+              </div>
+            </section>
 
-                <div className="auth-input-group">
-                  <label htmlFor="newPassword" className="auth-input-label">
-                    New Password
-                  </label>
-                  <input
-                    id="newPassword"
-                    name="newPassword"
-                    type="password"
-                    className="auth-input-field"
-                    value={formData.newPassword}
-                    onChange={handleChange}
-                    placeholder="Enter a new password"
-                    required
-                    disabled={loading}
-                  />
+            <section className="account-settings-card">
+              <div className="account-section-heading account-section-heading-action">
+                <div>
+                  <p className="account-section-kicker">Security</p>
+                  <h2>Password</h2>
+                  <p>
+                    {hasPassword
+                      ? "Your email and password sign-in is ready to use."
+                      : "Add a password to enable email and password sign-in."}
+                  </p>
                 </div>
-
-                <div className="auth-input-group">
-                  <label htmlFor="confirmPassword" className="auth-input-label">
-                    Confirm Password
-                  </label>
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    className="auth-input-field"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    placeholder="Confirm the new password"
-                    required
-                    disabled={loading}
-                  />
-                </div>
-
-                <p className="profile-note">
-                  {isSocialAccount
-                    ? "Once saved, this password can be used to log in with your email address."
-                    : "This will replace the password currently used for email login."}
-                </p>
-
-                {successMessage && (
-                  <div className="profile-success">{successMessage}</div>
-                )}
-
-                <div className="profile-form-actions">
+                {!showPasswordForm && (
                   <button
                     type="button"
-                    className="profile-secondary-btn"
-                    onClick={() => navigate("/app")}
+                    className="account-action-btn"
+                    onClick={openPasswordForm}
+                    disabled={loading}
                   >
-                    Cancel
+                    {passwordActionLabel}
                   </button>
-                  <button
-                    type="submit"
-                    className="auth-submit-btn"
-                    disabled={saving || loading}
-                  >
-                    {saving ? "Saving..." : "Save password"}
-                  </button>
+                )}
+              </div>
+
+              <div className="account-security-status">
+                <span className="account-security-dot" aria-hidden="true" />
+                <span>{hasPassword ? "Password set" : "Password not set"}</span>
+              </div>
+
+              {showPasswordForm && (
+                <form className="profile-form account-password-form" onSubmit={handlePasswordSubmit}>
+                  {hasPassword && (
+                    <div className="auth-input-group">
+                      <label htmlFor="currentPassword" className="auth-input-label">
+                        Current password
+                      </label>
+                      <input
+                        id="currentPassword"
+                        name="currentPassword"
+                        type="password"
+                        className="auth-input-field"
+                        value={formData.currentPassword}
+                        onChange={handleChange}
+                        placeholder="Enter current password"
+                        disabled={saving}
+                        required
+                      />
+                    </div>
+                  )}
+
+                  <div className="auth-input-group">
+                    <label htmlFor="newPassword" className="auth-input-label">
+                      New password
+                    </label>
+                    <input
+                      id="newPassword"
+                      name="newPassword"
+                      type="password"
+                      className="auth-input-field"
+                      value={formData.newPassword}
+                      onChange={handleChange}
+                      placeholder="At least 6 characters"
+                      disabled={saving}
+                      required
+                    />
+                  </div>
+
+                  <div className="auth-input-group">
+                    <label htmlFor="confirmPassword" className="auth-input-label">
+                      Confirm new password
+                    </label>
+                    <input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type="password"
+                      className="auth-input-field"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      placeholder="Repeat new password"
+                      disabled={saving}
+                      required
+                    />
+                  </div>
+
+                  <div className="profile-form-actions">
+                    <button
+                      type="button"
+                      className="profile-secondary-btn"
+                      onClick={() => {
+                        resetPasswordForm();
+                        setShowPasswordForm(false);
+                      }}
+                      disabled={saving}
+                    >
+                      Cancel
+                    </button>
+                    <button type="submit" className="account-action-btn" disabled={saving}>
+                      {saving ? "Saving..." : "Save password"}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </section>
+
+            <section className="account-settings-card account-session-card">
+              <div className="account-section-heading account-section-heading-action">
+                <div>
+                  <p className="account-section-kicker">Sessions</p>
+                  <h2>Sign out everywhere</h2>
+                  <p>End this account’s active sessions on all devices, including this one.</p>
                 </div>
-              </form>
+                <button
+                  type="button"
+                  className="account-danger-btn"
+                  onClick={() => setShowSignOutConfirm(true)}
+                  disabled={loading}
+                >
+                  Sign out of all devices
+                </button>
+              </div>
             </section>
           </div>
         </div>
       </main>
+
+      {showSignOutConfirm && (
+        <div className="modal-overlay" onClick={signingOut ? undefined : () => setShowSignOutConfirm(false)}>
+          <div className="modal-content" onClick={(event) => event.stopPropagation()}>
+            <h2 className="modal-title">Sign out of all devices?</h2>
+            <p className="account-confirm-copy">
+              You will need to sign in again on every device where this account is active.
+            </p>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="modal-btn modal-btn-secondary"
+                disabled={signingOut}
+                onClick={() => setShowSignOutConfirm(false)}
+              >
+                Keep me signed in
+              </button>
+              <button
+                type="button"
+                className="account-danger-btn"
+                disabled={signingOut}
+                onClick={handleLogoutAll}
+              >
+                {signingOut ? "Signing out..." : "Sign out everywhere"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

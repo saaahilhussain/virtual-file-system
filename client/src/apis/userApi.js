@@ -115,13 +115,11 @@ export async function logoutAllSessions() {
     credentials: "include",
   });
 
-  const data = await res.json();
-
   if (!res.ok) {
-    throw new Error(data.error || "Failed to logout from all sessions");
+    return parseApiResponse(res, "Failed to logout from all sessions");
   }
 
-  return data;
+  return null;
 }
 
 /**
