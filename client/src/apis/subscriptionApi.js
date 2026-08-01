@@ -44,6 +44,15 @@ export const getMySubscription = async () => {
   return response.json();
 };
 
+export const getMySubscriptionBillingDetails = async () => {
+  const response = await fetch(`${BASE_URL}/subscriptions/my-plan/details`, {
+    credentials: "include",
+  });
+
+  await handleFetchErrors(response);
+  return response.json();
+};
+
 export const upgradeSubscription = async (planId) => {
   const response = await fetch(`${BASE_URL}/subscriptions/upgrade`, {
     method: "POST",

@@ -33,9 +33,11 @@ function DirectoryView() {
     { id: null, name: "All Files" },
   ]);
 
-  // Lists of items
-  const [directoriesList, setDirectoriesList] = useState([]);
-  const [filesList, setFilesList] = useState([]);
+  // Current directory page. Items are already ordered newest-first by the API.
+  const [items, setItems] = useState([]);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [directoryLoading, setDirectoryLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Error state
   const [errorMessage, setErrorMessage] = useState("");
@@ -74,10 +76,12 @@ function DirectoryView() {
   /**
    * Fetch directory contents
    */
-  async function getDirectoryItemsHandler() {
+  async function getDirectoryItemsHandler({ cursor = null, append = false } = {}) {
     setErrorMessage(""); // clear any existing error
+    if (append) setLoadingMore(true);
+    else setDirectoryLoading(true);
     try {
-      const data = await getDirectoryItems(dirId);
+      const data = await getDirectoryItems(dirId, { cursor });
 
       // Set directory name
       setDirectoryName(dirId ? data.name : "My Drive");
@@ -88,15 +92,19 @@ function DirectoryView() {
           : [{ id: null, name: "All Files" }],
       );
 
-      // Reverse directories and files so new items show on top
-      setDirectoriesList([...data.directories].reverse());
-      setFilesList([...data.files].reverse());
+      setItems((previous) =>
+        append ? [...previous, ...(data.items || [])] : data.items || [],
+      );
+      setNextCursor(data.nextCursor || null);
     } catch (error) {
       if (error.message === "Unauthorized") {
         navigate("/login");
       } else {
         setErrorMessage(error.message);
       }
+    } finally {
+      setDirectoryLoading(false);
+      setLoadingMore(false);
     }
   }
 
@@ -120,6 +128,7 @@ function DirectoryView() {
   }
 
   useEffect(() => {
+    setNextCursor(null);
     getDirectoryItemsHandler();
     getUserStorageInfo();
     // Reset context menu
@@ -196,6 +205,7 @@ function DirectoryView() {
         size: file.size,
         id: `temp-${Date.now()}-${Math.random()}`,
         isUploading: false,
+        isDirectory: false,
       };
 
       const data = await uploadInitiate({
@@ -208,7 +218,7 @@ function DirectoryView() {
       const { uploadUrl, fileId } = data;
 
       // Add it to the top of the existing list
-      setFilesList((prev) => [tempItem, ...prev]);
+      setItems((prev) => [tempItem, ...prev]);
 
       // Clear file input so the same file can be chosen again if needed
       e.target.value = "";
@@ -228,8 +238,10 @@ function DirectoryView() {
    */
   function startFileUpload(item, uploadUrl, fileId) {
     // Mark it as isUploading: true
-    setFilesList((prev) =>
-      prev.map((f) => (f.id === item.id ? { ...f, isUploading: true } : f)),
+    setItems((prev) =>
+      prev.map((file) =>
+        file.id === item.id ? { ...file, isUploading: true } : file,
+      ),
     );
 
     // Start upload
@@ -280,8 +292,7 @@ function DirectoryView() {
       });
     }
 
-    // Remove from filesList
-    setFilesList((prev) => prev.filter((f) => f.id !== tempId));
+    setItems((prev) => prev.filter((item) => item.id !== tempId));
 
     // Remove from progressMap
     setProgressMap((prev) => {
@@ -421,7 +432,6 @@ function DirectoryView() {
     return () => document.removeEventListener("click", handleDocumentClick);
   }, []);
 
-  // Combine directories & files into one list for rendering
   const currentPathParts = breadcrumbTrail
     .slice(1)
     .map((entry) => entry.name)
@@ -434,18 +444,10 @@ function DirectoryView() {
     return currentPath === "/" ? `/${name}` : `${currentPath}/${name}`;
   }
 
-  const combinedItems = [
-    ...directoriesList.map((d) => ({
-      ...d,
-      isDirectory: true,
-      pathDisplay: buildItemPath(d.name),
-    })),
-    ...filesList.map((f) => ({
-      ...f,
-      isDirectory: false,
-      pathDisplay: buildItemPath(f.name),
-    })),
-  ];
+  const displayItems = items.map((item) => ({
+    ...item,
+    pathDisplay: buildItemPath(item.name),
+  }));
 
   const isAccessError =
     errorMessage === "Directory not found or you do not have access to it!";
@@ -553,7 +555,12 @@ function DirectoryView() {
             />
           )}
 
-          {combinedItems.length === 0 ? (
+          {directoryLoading && displayItems.length === 0 ? (
+            <div className="directory-loading-state" aria-live="polite">
+              <span className="directory-loading-spinner" aria-hidden="true" />
+              Loading files...
+            </div>
+          ) : displayItems.length === 0 ? (
             isAccessError ? (
               <p className="empty-state-text">
                 Directory not found or you do not have access to it!
@@ -566,7 +573,7 @@ function DirectoryView() {
             )
           ) : (
             <DirectoryList
-              items={combinedItems}
+              items={displayItems}
               handleRowClick={handleRowClick}
               activeContextMenu={activeContextMenu}
               contextMenuPos={contextMenuPos}
@@ -580,6 +587,20 @@ function DirectoryView() {
               openRenameModal={openRenameModal}
               BASE_URL={BASE_URL}
             />
+          )}
+          {nextCursor && !isAccessError && (
+            <div className="directory-load-more">
+              <button
+                type="button"
+                className="profile-secondary-btn"
+                disabled={loadingMore}
+                onClick={() =>
+                  getDirectoryItemsHandler({ cursor: nextCursor, append: true })
+                }
+              >
+                {loadingMore ? "Loading..." : "Load more"}
+              </button>
+            </div>
           )}
         </div>
       </div>

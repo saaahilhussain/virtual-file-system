@@ -2,6 +2,7 @@ import express from "express";
 import {
   cancelSubscription,
   createSubscription,
+  getSubscriptionBillingDetails,
   getSubscriptionDetails,
   pauseSubscription,
   resumeSubscription,
@@ -11,6 +12,7 @@ import {
 const router = express.Router();
 
 router.get("/my-plan", getSubscriptionDetails);
+router.get("/my-plan/details", getSubscriptionBillingDetails);
 router.post("/create", createSubscription);
 router.post("/upgrade", upgradeSubscription);
 router.post("/pause", pauseSubscription);

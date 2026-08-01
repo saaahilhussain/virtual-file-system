@@ -19,17 +19,36 @@ export const getSubscriptionDetails = async (req, res, next) => {
       return res.json({ subscription: null });
     }
 
+    return res.json({
+      subscription: {
+        _id: subscription._id,
+        planId: subscription.planId,
+        status: subscription.status,
+        createdAt: subscription.createdAt,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getSubscriptionBillingDetails = async (req, res, next) => {
+  if (!req.user?._id) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+    const subscription = await findActiveSubscription(req.user._id);
+    if (!subscription) {
+      return res.json({ subscription: null });
+    }
+
     const rzpSubscription = await razorPayInstance.subscriptions.fetch(
       subscription.razorpaySubscriptionId,
     );
 
     return res.json({
       subscription: {
-        _id: subscription._id,
-        planId: subscription.planId,
-        status: subscription.status,
-        razorpaySubscriptionId: subscription.razorpaySubscriptionId,
-        createdAt: subscription.createdAt,
         currentStart: rzpSubscription.current_start,
         currentEnd: rzpSubscription.current_end,
         chargeAt: rzpSubscription.charge_at,

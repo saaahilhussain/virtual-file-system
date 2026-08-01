@@ -21,7 +21,10 @@ export default async function checkAuth(req, res, next) {
     role: session.role || "user",
   };
   req.sessionId = sid;
-  await redisClient.json.set(redisKey, "$.lastActiveAt", new Date().toISOString());
+  // Activity tracking should never add a network round trip to every API request.
+  redisClient.json
+    .set(redisKey, "$.lastActiveAt", new Date().toISOString())
+    .catch((error) => console.error("Unable to update session activity", error));
   next();
 }
 

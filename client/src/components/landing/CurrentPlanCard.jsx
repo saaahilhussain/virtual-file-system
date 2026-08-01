@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   cancelSubscription,
   getMySubscription,
+  getMySubscriptionBillingDetails,
   pauseSubscription,
   resumeSubscription,
 } from "../../apis/subscriptionApi";
@@ -101,8 +102,18 @@ const CurrentPlanCard = ({ onChange }) => {
     setLoading(true);
     try {
       const data = await getMySubscription();
-      setSubscription(data?.subscription ?? null);
-      onChange?.(data?.subscription ?? null);
+      const summary = data?.subscription ?? null;
+      setSubscription(summary);
+      onChange?.(summary);
+      if (summary) {
+        getMySubscriptionBillingDetails()
+          .then((billing) => {
+            setSubscription((current) =>
+              current ? { ...current, ...(billing?.subscription ?? {}) } : current,
+            );
+          })
+          .catch(() => {});
+      }
     } catch (error) {
       if (error.message !== "Unauthorized") {
         setErrorMsg(error.message);

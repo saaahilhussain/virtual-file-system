@@ -132,11 +132,19 @@ export const loginUser = async (req, res, next) => {
 };
 
 export const getUser = async (req, res) => {
-  const user = await User.findById(req.user._id);
-  const rootDirectory = await Directory.findOne(
-    { _id: req.user.rootDirId, userId: req.user._id },
-    { size: 1 },
-  ).lean();
+  const [user, rootDirectory] = await Promise.all([
+    User.findById(req.user._id)
+      .select("name email picture authProviders password maxStorageInBytes role")
+      .lean(),
+    Directory.findOne(
+      { _id: req.user.rootDirId, userId: req.user._id },
+      { size: 1 },
+    ).lean(),
+  ]);
+
+  if (!user) {
+    return res.status(404).json({ error: "User not found" });
+  }
 
   return res.status(200).json({
     name: user.name,

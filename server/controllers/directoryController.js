@@ -5,6 +5,33 @@ import File from "../models/fileModel.js";
 import { deleteS3Files } from "../services/s3Service.js";
 import { response } from "express";
 
+const DEFAULT_PAGE_SIZE = 100;
+const MAX_PAGE_SIZE = 100;
+
+function decodeCursor(cursor) {
+  if (!cursor) return null;
+
+  try {
+    const { updatedAt, id } = JSON.parse(
+      Buffer.from(cursor, "base64url").toString("utf8"),
+    );
+    const timestamp = new Date(updatedAt);
+    if (!id || Number.isNaN(timestamp.getTime()) || !ObjectId.isValid(id)) {
+      return null;
+    }
+    return { updatedAt: timestamp, id: new ObjectId(id) };
+  } catch {
+    return null;
+  }
+}
+
+function encodeCursor(item) {
+  if (!item?.updatedAt || !item?._id) return null;
+  return Buffer.from(
+    JSON.stringify({ updatedAt: item.updatedAt.toISOString(), id: item._id }),
+  ).toString("base64url");
+}
+
 async function updateAncestorSizes(startParentId, delta) {
   if (!startParentId || !Number.isFinite(delta) || delta === 0) return;
 
@@ -45,6 +72,12 @@ async function buildLegacyPathIds(directoryData, userId) {
 export const getDirectory = async (req, res) => {
   const { rootDirId } = req.user;
   const id = req.params.id || rootDirId;
+  const requestedLimit = Number.parseInt(req.query.limit, 10);
+  const limit = Math.min(
+    Math.max(Number.isFinite(requestedLimit) ? requestedLimit : DEFAULT_PAGE_SIZE, 1),
+    MAX_PAGE_SIZE,
+  );
+  const cursor = decodeCursor(req.query.cursor);
 
   // Find the directory and verify ownership
   const directoryData = await Directory.findOne({
@@ -87,22 +120,65 @@ export const getDirectory = async (req, res) => {
     }
   });
 
-  const files = await File.find({
+  const childMatch = {
     parentDirId: new ObjectId(id),
-    userId: req.user._id,
+    userId: new ObjectId(req.user._id),
     isTrashed: false,
-  }).lean();
-  const directories = await Directory.find({
-    parentDirId: new ObjectId(id),
-    userId: req.user._id,
-    isTrashed: false,
-  }).lean();
+  };
+  const cursorMatch = cursor
+    ? {
+        $or: [
+          { updatedAt: { $lt: cursor.updatedAt } },
+          { updatedAt: cursor.updatedAt, _id: { $lt: cursor.id } },
+        ],
+      }
+    : {};
+
+  const page = await File.aggregate([
+    { $match: { ...childMatch, ...cursorMatch } },
+    {
+      $project: {
+        name: 1,
+        size: 1,
+        extension: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        itemType: { $literal: "file" },
+      },
+    },
+    {
+      $unionWith: {
+        coll: Directory.collection.name,
+        pipeline: [
+          { $match: { ...childMatch, ...cursorMatch } },
+          {
+            $project: {
+              name: 1,
+              size: 1,
+              createdAt: 1,
+              updatedAt: 1,
+              itemType: { $literal: "directory" },
+            },
+          },
+        ],
+      },
+    },
+    { $sort: { updatedAt: -1, _id: -1 } },
+    { $limit: limit + 1 },
+  ]);
+
+  const hasMore = page.length > limit;
+  const items = (hasMore ? page.slice(0, limit) : page).map((item) => ({
+    ...item,
+    id: item._id,
+    isDirectory: item.itemType === "directory",
+  }));
 
   return res.status(200).json({
-    ...directoryData,
+    name: directoryData.name,
     breadcrumbTrail,
-    files: files.map((file) => ({ ...file, id: file._id })),
-    directories: directories.map((dir) => ({ ...dir, id: dir._id })),
+    items,
+    nextCursor: hasMore ? encodeCursor(items.at(-1)) : null,
   });
 };
 

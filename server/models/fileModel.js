@@ -43,6 +43,15 @@ const fileSchema = new Schema(
   { strict: "throw" },
 );
 
+// Covers the file listing query used on every drive navigation.
+fileSchema.index({
+  userId: 1,
+  parentDirId: 1,
+  isTrashed: 1,
+  updatedAt: -1,
+  _id: -1,
+});
+
 const File = model("File", fileSchema);
 
 export default File;

@@ -41,6 +41,15 @@ const directorySchema = new Schema(
   { strict: "throw" },
 );
 
+// Covers the folder listing query used on every drive navigation.
+directorySchema.index({
+  userId: 1,
+  parentDirId: 1,
+  isTrashed: 1,
+  updatedAt: -1,
+  _id: -1,
+});
+
 const Directory = model("Directory", directorySchema);
 
 export default Directory;

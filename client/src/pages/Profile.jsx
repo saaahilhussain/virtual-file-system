@@ -9,7 +9,10 @@ import {
   revokeSession,
   updatePassword,
 } from "../apis/userApi";
-import { getMySubscription } from "../apis/subscriptionApi";
+import {
+  getMySubscription,
+  getMySubscriptionBillingDetails,
+} from "../apis/subscriptionApi";
 
 const PROVIDER_DETAILS = {
   local: {
@@ -61,6 +64,9 @@ function Profile() {
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [subscription, setSubscription] = useState(null);
+  const [billingDetails, setBillingDetails] = useState(null);
+  const [planLoading, setPlanLoading] = useState(true);
+  const [billingLoading, setBillingLoading] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [revokingSessionId, setRevokingSessionId] = useState(null);
   const [user, setUser] = useState(null);
@@ -75,17 +81,11 @@ function Profile() {
   useEffect(() => {
     let active = true;
 
-    async function loadUser() {
+    async function loadAccount() {
       try {
-        const [data, sessionsData, subscriptionData] = await Promise.all([
-          fetchUser(),
-          fetchSessions(),
-          getMySubscription(),
-        ]);
+        const data = await fetchUser();
         if (active) {
           setUser(data);
-          setSessions(sessionsData.sessions || []);
-          setSubscription(subscriptionData.subscription || null);
         }
       } catch (error) {
         if (!active) return;
@@ -97,12 +97,48 @@ function Profile() {
       } finally {
         if (active) {
           setLoading(false);
-          setSessionsLoading(false);
         }
       }
     }
 
-    loadUser();
+    async function loadSessions() {
+      try {
+        const sessionsData = await fetchSessions();
+        if (active) setSessions(sessionsData.sessions || []);
+      } catch {
+        // Device information is supplementary and must not block account access.
+      } finally {
+        if (active) setSessionsLoading(false);
+      }
+    }
+
+    async function loadPlan() {
+      try {
+        const subscriptionData = await getMySubscription();
+        const plan = subscriptionData.subscription || null;
+        if (!active) return;
+        setSubscription(plan);
+
+        if (!plan) return;
+        setBillingLoading(true);
+        try {
+          const billingData = await getMySubscriptionBillingDetails();
+          if (active) setBillingDetails(billingData.subscription || null);
+        } catch {
+          // Billing dates may be temporarily unavailable while the saved plan remains valid.
+        } finally {
+          if (active) setBillingLoading(false);
+        }
+      } catch {
+        // Plan data is supplementary and must not block account access.
+      } finally {
+        if (active) setPlanLoading(false);
+      }
+    }
+
+    loadAccount();
+    loadSessions();
+    loadPlan();
     return () => {
       active = false;
     };
@@ -118,7 +154,9 @@ function Profile() {
     .map((provider) => ({ id: provider, ...PROVIDER_DETAILS[provider] }));
   const planName = subscription ? PLAN_NAMES[subscription.planId] || "Paid plan" : "Free";
   const planStatus = subscription?.status || "active";
-  const renewalDate = formatDate(subscription?.chargeAt || subscription?.currentEnd);
+  const renewalDate = formatDate(
+    billingDetails?.chargeAt || billingDetails?.currentEnd,
+  );
 
   const resetPasswordForm = () => {
     setFormData({ currentPassword: "", newPassword: "", confirmPassword: "" });
@@ -303,9 +341,11 @@ function Profile() {
               <div className="account-section-heading account-section-heading-action">
                 <div>
                   <p className="account-section-kicker">Storage plan</p>
-                  <h2>{planName}</h2>
+                  <h2>{planLoading ? "Loading plan..." : planName}</h2>
                   <p>
-                    {subscription
+                    {planLoading
+                      ? "Checking your storage plan."
+                      : subscription
                       ? `${planStatus.charAt(0).toUpperCase()}${planStatus.slice(1)} subscription`
                       : "Your current free storage plan."}
                   </p>
@@ -325,7 +365,13 @@ function Profile() {
                 </div>
                 <div>
                   <span>{subscription ? "Next billing" : "Plan status"}</span>
-                  <strong>{renewalDate || (subscription ? "Not scheduled" : "Free plan")}</strong>
+                  <strong>
+                    {planLoading
+                      ? "Loading..."
+                      : billingLoading
+                      ? "Loading billing details..."
+                      : renewalDate || (subscription ? "Not scheduled" : "Free plan")}
+                  </strong>
                 </div>
               </div>
             </section>
