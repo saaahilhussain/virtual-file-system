@@ -40,8 +40,14 @@ jobs:
             echo "Moving to repository..."
             cd "$REMOTE_REPO_DIR"
 
-            echo "Pulling latest code..."
-            git pull origin main
+            echo "Fetching latest code..."
+            git fetch origin
+
+            echo "Resetting repository to origin/main..."
+            git reset --hard origin/main
+
+            echo "Removing untracked files..."
+            git clean -fd
 
             echo "Moving to backend..."
             cd "$BACKEND_DIR"
