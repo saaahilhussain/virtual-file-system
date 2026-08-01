@@ -5,6 +5,7 @@ import { verifyIdToken } from "../services/googleAuthService.js";
 import { verifyGithubCode } from "../services/githubAuthService.js";
 import { sendOtpService, verifyOtpService } from "../services/otpService.js";
 import redisClient from "../config/redis.js";
+import { createSession, getUserSessionKeys } from "../services/sessionService.js";
 import { z } from "zod";
 import crypto from "crypto";
 import {
@@ -25,15 +26,8 @@ function resetGrantKey(token) {
 }
 
 async function invalidateUserSessions(userId) {
-  const allSessions = await redisClient.ft.search(
-    "userIdIdx",
-    `@userId:{${userId}}`,
-    { RETURN: [] },
-  );
-
-  await Promise.all(
-    allSessions.documents.map((session) => redisClient.del(session.id)),
-  );
+  const sessionKeys = await getUserSessionKeys(userId);
+  await Promise.all(sessionKeys.map((key) => redisClient.del(key)));
 }
 
 function getEffectiveAuthProviders(user) {
@@ -57,37 +51,6 @@ function ensureAuthProvider(user, provider) {
   providers.add(provider);
   user.authProviders = [...providers];
   return true;
-}
-
-async function createSession(res, user, sessionExpiry) {
-  const allSessions = await redisClient.ft.search(
-    "userIdIdx",
-    `@userId:{${user.id}}`,
-    {
-      RETURN: [],
-    },
-  );
-
-  if (allSessions.total >= 2) {
-    await redisClient.del(allSessions.documents[0].id);
-  }
-
-  const sessionId = crypto.randomUUID();
-  const redisKey = `session:${sessionId}`;
-  await redisClient.json.set(redisKey, "$", {
-    userId: user._id,
-    rootDirId: user.rootDirId,
-    role: user.role,
-  });
-  await redisClient.expire(redisKey, sessionExpiry / 1000);
-
-  res.cookie("sid", sessionId, {
-    httpOnly: true,
-    signed: true,
-    maxAge: sessionExpiry,
-    secure: isProd,
-    sameSite: "lax",
-  });
 }
 
 export const sendOtp = async (req, res, next) => {
@@ -243,7 +206,7 @@ export const loginWithGoogle = async (req, res, next) => {
     }
 
     const sessionExpiry = 1000 * 60 * 60 * 24 * 7;
-    await createSession(res, user, sessionExpiry);
+    await createSession({ res, req, user, sessionExpiry, isProd });
     return res.status(200).json({ message: "logged in" });
   }
 
@@ -285,16 +248,18 @@ export const loginWithGoogle = async (req, res, next) => {
     const sessionExpiry = 60 * 60 * 24 * 7 * 1000;
     await mongooseSession.commitTransaction();
 
-    await createSession(
+    await createSession({
       res,
-      {
+      req,
+      user: {
         _id: userId,
         id: userId.toString(),
         rootDirId,
         role: "user",
       },
       sessionExpiry,
-    );
+      isProd,
+    });
 
     return res.status(201).json({ message: "User Registered and logged in." });
   } catch (err) {
@@ -326,7 +291,7 @@ export const loginWithGithub = async (req, res, next) => {
         await user.save();
       }
       const sessionExpiry = 1000 * 60 * 60 * 24 * 7;
-      await createSession(res, user, sessionExpiry);
+      await createSession({ res, req, user, sessionExpiry, isProd });
       return res.status(200).json({ message: "logged in" });
     }
 
@@ -367,16 +332,18 @@ export const loginWithGithub = async (req, res, next) => {
       const sessionExpiry = 60 * 60 * 24 * 7 * 1000;
       await mongooseSession.commitTransaction();
 
-      await createSession(
+      await createSession({
         res,
-        {
+        req,
+        user: {
           _id: userId,
           id: userId.toString(),
           rootDirId,
           role: "user",
         },
         sessionExpiry,
-      );
+        isProd,
+      });
 
       return res
         .status(201)

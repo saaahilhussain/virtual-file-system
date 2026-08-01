@@ -3,10 +3,12 @@ import checkAuth from "../middlewares/authMiddleware.js";
 
 import {
   getUser,
+  getSessions,
   loginUser,
   logoutAll,
   logoutUser,
   registerUser,
+  revokeSession,
   updatePassword,
 } from "../controllers/userController.js";
 
@@ -17,6 +19,10 @@ router.post("/register", registerUser);
 router.post("/login", loginUser);
 
 router.get("/", checkAuth, getUser);
+
+router.get("/sessions", checkAuth, getSessions);
+
+router.delete("/sessions/:sessionId", checkAuth, revokeSession);
 
 router.put("/password", checkAuth, updatePassword);
 

@@ -20,6 +20,8 @@ export default async function checkAuth(req, res, next) {
     rootDirId: session.rootDirId,
     role: session.role || "user",
   };
+  req.sessionId = sid;
+  await redisClient.json.set(redisKey, "$.lastActiveAt", new Date().toISOString());
   next();
 }
 

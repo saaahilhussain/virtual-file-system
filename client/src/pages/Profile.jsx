@@ -4,9 +4,12 @@ import Sidebar from "../components/Sidebar";
 import TopBar from "../components/TopBar";
 import {
   fetchUser,
+  fetchSessions,
   logoutAllSessions,
+  revokeSession,
   updatePassword,
 } from "../apis/userApi";
+import { getMySubscription } from "../apis/subscriptionApi";
 
 const PROVIDER_DETAILS = {
   local: {
@@ -26,6 +29,28 @@ const PROVIDER_DETAILS = {
   },
 };
 
+const PLAN_NAMES = {
+  [import.meta.env.VITE_RZP_PLAN_PRO_MONTHLY]: "Pro",
+  [import.meta.env.VITE_RZP_PLAN_PRO_YEARLY]: "Pro",
+  [import.meta.env.VITE_RZP_PLAN_PREMIUM_MONTHLY]: "Premium",
+  [import.meta.env.VITE_RZP_PLAN_PREMIUM_YEARLY]: "Premium",
+};
+
+const formatBytes = (bytes = 0) => {
+  if (!bytes) return "0 GB";
+  if (bytes >= 1024 ** 4) return `${(bytes / 1024 ** 4).toFixed(2)} TB`;
+  return `${(bytes / 1024 ** 3).toFixed(0)} GB`;
+};
+
+const formatDate = (timestamp) => {
+  if (!timestamp) return null;
+  return new Date(timestamp * 1000).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
+
 function Profile() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -34,6 +59,10 @@ function Profile() {
   const [signingOut, setSigningOut] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const [sessions, setSessions] = useState([]);
+  const [subscription, setSubscription] = useState(null);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [revokingSessionId, setRevokingSessionId] = useState(null);
   const [user, setUser] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -48,8 +77,16 @@ function Profile() {
 
     async function loadUser() {
       try {
-        const data = await fetchUser();
-        if (active) setUser(data);
+        const [data, sessionsData, subscriptionData] = await Promise.all([
+          fetchUser(),
+          fetchSessions(),
+          getMySubscription(),
+        ]);
+        if (active) {
+          setUser(data);
+          setSessions(sessionsData.sessions || []);
+          setSubscription(subscriptionData.subscription || null);
+        }
       } catch (error) {
         if (!active) return;
         if (error.message === "Unauthorized") {
@@ -58,7 +95,10 @@ function Profile() {
         }
         setErrorMessage(error.message || "Failed to load account settings.");
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          setSessionsLoading(false);
+        }
       }
     }
 
@@ -76,6 +116,9 @@ function Profile() {
   const connectedProviders = authProviders
     .filter((provider) => PROVIDER_DETAILS[provider])
     .map((provider) => ({ id: provider, ...PROVIDER_DETAILS[provider] }));
+  const planName = subscription ? PLAN_NAMES[subscription.planId] || "Paid plan" : "Free";
+  const planStatus = subscription?.status || "active";
+  const renewalDate = formatDate(subscription?.chargeAt || subscription?.currentEnd);
 
   const resetPasswordForm = () => {
     setFormData({ currentPassword: "", newPassword: "", confirmPassword: "" });
@@ -141,6 +184,18 @@ function Profile() {
       setErrorMessage(error.message || "Failed to sign out of all devices.");
     } finally {
       setSigningOut(false);
+    }
+  };
+
+  const handleRevokeSession = async (sessionId) => {
+    try {
+      setRevokingSessionId(sessionId);
+      await revokeSession(sessionId);
+      setSessions((previous) => previous.filter((session) => session.id !== sessionId));
+    } catch (error) {
+      setErrorMessage(error.message || "Failed to sign out this device.");
+    } finally {
+      setRevokingSessionId(null);
     }
   };
 
@@ -241,6 +296,37 @@ function Profile() {
                 ) : (
                   <p className="account-empty-state">No sign-in methods found.</p>
                 )}
+              </div>
+            </section>
+
+            <section className="account-settings-card account-plan-card">
+              <div className="account-section-heading account-section-heading-action">
+                <div>
+                  <p className="account-section-kicker">Storage plan</p>
+                  <h2>{planName}</h2>
+                  <p>
+                    {subscription
+                      ? `${planStatus.charAt(0).toUpperCase()}${planStatus.slice(1)} subscription`
+                      : "Your current free storage plan."}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="profile-secondary-btn"
+                  onClick={() => navigate("/plans")}
+                >
+                  Manage plan
+                </button>
+              </div>
+              <div className="account-plan-stats">
+                <div>
+                  <span>Storage included</span>
+                  <strong>{formatBytes(user?.maxStorage)}</strong>
+                </div>
+                <div>
+                  <span>{subscription ? "Next billing" : "Plan status"}</span>
+                  <strong>{renewalDate || (subscription ? "Not scheduled" : "Free plan")}</strong>
+                </div>
               </div>
             </section>
 
@@ -362,6 +448,40 @@ function Profile() {
                 >
                   Sign out of all devices
                 </button>
+              </div>
+              <div className="account-device-list">
+                {sessionsLoading ? (
+                  <p className="account-empty-state">Loading signed-in devices...</p>
+                ) : sessions.length ? (
+                  sessions.map((session) => (
+                    <div className="account-device-row" key={session.id}>
+                      <span className="account-device-icon" aria-hidden="true">▣</span>
+                      <div className="account-device-copy">
+                        <strong>
+                          {session.device}
+                          {session.isCurrent ? " · This device" : ""}
+                        </strong>
+                        <span>
+                          {session.lastActiveAt
+                            ? `Last active ${new Date(session.lastActiveAt).toLocaleString()}`
+                            : "Active session"}
+                        </span>
+                      </div>
+                      {!session.isCurrent && (
+                        <button
+                          type="button"
+                          className="account-device-signout"
+                          onClick={() => handleRevokeSession(session.id)}
+                          disabled={revokingSessionId === session.id}
+                        >
+                          {revokingSessionId === session.id ? "Signing out..." : "Sign out"}
+                        </button>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <p className="account-empty-state">No active sessions found.</p>
+                )}
               </div>
             </section>
           </div>

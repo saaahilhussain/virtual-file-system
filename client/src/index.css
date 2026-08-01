@@ -448,6 +448,87 @@ body.dark-mode .profile-success {
   background: linear-gradient(105deg, rgba(254, 242, 242, 0.8), var(--bg-surface) 38%);
 }
 
+.account-plan-card {
+  background: linear-gradient(105deg, rgba(226, 232, 222, 0.7), var(--bg-surface) 42%);
+}
+
+.account-plan-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.account-plan-stats > div {
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  background: var(--bg-surface);
+}
+
+.account-plan-stats span,
+.account-device-copy span {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.account-plan-stats strong,
+.account-device-copy strong {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.account-device-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.account-device-row {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  background: var(--bg-surface);
+}
+
+.account-device-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+}
+
+.account-device-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.account-device-signout {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: #b42318;
+  font-family: "Outfit", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.account-device-signout:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .account-confirm-copy {
   margin: 0 0 20px;
   color: var(--text-secondary);
@@ -493,6 +574,10 @@ body.dark-mode .account-session-card {
   background: linear-gradient(105deg, rgba(127, 29, 29, 0.2), var(--bg-surface) 42%);
 }
 
+body.dark-mode .account-plan-card {
+  background: linear-gradient(105deg, rgba(74, 99, 72, 0.2), var(--bg-surface) 42%);
+}
+
 @media (max-width: 768px) {
   .account-settings-hero,
   .account-section-heading-action {
@@ -527,6 +612,19 @@ body.dark-mode .account-session-card {
 
   .account-session-card .account-danger-btn {
     width: 100%;
+  }
+
+  .account-plan-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .account-device-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .account-device-signout {
+    margin-left: 49px;
   }
 }
 

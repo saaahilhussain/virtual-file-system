@@ -8,6 +8,7 @@ import {
   passwordUpdateSchema,
 } from "../validators/authValidators.js";
 import { z } from "zod";
+import { createSession, getUserSessionKeys } from "../services/sessionService.js";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -125,35 +126,8 @@ export const loginUser = async (req, res, next) => {
     return res.status(404).json({ error: "Invalid Credentials" });
   }
 
-  const allSessions = await redisClient.ft.search(
-    "userIdIdx",
-    `@userId:{${user.id}}`,
-    {
-      RETURN: [],
-    },
-  );
-
-  if (allSessions.total >= 2) {
-    await redisClient.del(allSessions.documents[0].id);
-  }
-
-  const sessionId = crypto.randomUUID();
-  const redisKey = `session:${sessionId}`;
   const sessionExpiry = 60 * 60 * 24 * 1000;
-  await redisClient.json.set(redisKey, "$", {
-    userId: user._id,
-    rootDirId: user.rootDirId,
-    role: user.role,
-  });
-  await redisClient.expire(redisKey, sessionExpiry / 1000);
-
-  res.cookie("sid", sessionId, {
-    httpOnly: true,
-    signed: true,
-    maxAge: sessionExpiry,
-    secure: isProd,
-    sameSite: "lax",
-  });
+  await createSession({ res, req, user, sessionExpiry, isProd });
   return res.status(200).json({ message: "logged in" });
 };
 
@@ -227,11 +201,58 @@ export const logoutUser = async (req, res) => {
 };
 
 export const logoutAll = async (req, res) => {
-  const { sid } = req.signedCookies;
-  const session = await redisClient.json.get(`session:${sid}`);
-
-  await redisClient.del(`session:${sid}`);
+  const sessionKeys = await getUserSessionKeys(req.user._id);
+  await Promise.all(sessionKeys.map((key) => redisClient.del(key)));
 
   res.clearCookie("sid");
   res.status(204).end();
+};
+
+export const getSessions = async (req, res, next) => {
+  try {
+    const { sid } = req.signedCookies;
+    const sessionKeys = await getUserSessionKeys(req.user._id);
+    const sessions = await Promise.all(
+      sessionKeys.map(async (key) => {
+        const session = await redisClient.json.get(key);
+        return {
+          id: key.replace("session:", ""),
+          device: session?.device || "Unknown device",
+          createdAt: session?.createdAt || null,
+          lastActiveAt: session?.lastActiveAt || null,
+          isCurrent: key === `session:${sid}`,
+        };
+      }),
+    );
+
+    sessions.sort(
+      (left, right) =>
+        Number(right.isCurrent) - Number(left.isCurrent) ||
+        new Date(right.lastActiveAt || 0) - new Date(left.lastActiveAt || 0),
+    );
+    return res.status(200).json({ sessions });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const revokeSession = async (req, res, next) => {
+  try {
+    const { sessionId } = req.params;
+    const { sid } = req.signedCookies;
+    if (sessionId === sid) {
+      return res.status(400).json({ error: "Use logout to sign out of this device." });
+    }
+
+    const sessionKey = `session:${sessionId}`;
+    const session = await redisClient.json.get(sessionKey);
+    if (!session || session.userId !== req.user._id.toString()) {
+      return res.status(404).json({ error: "Session not found." });
+    }
+
+    await redisClient.del(sessionKey);
+    return res.status(204).end();
+  } catch (error) {
+    next(error);
+  }
 };

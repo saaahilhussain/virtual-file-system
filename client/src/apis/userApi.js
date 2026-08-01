@@ -122,6 +122,26 @@ export async function logoutAllSessions() {
   return null;
 }
 
+export async function fetchSessions() {
+  const res = await fetch(`${BASE_URL}/user/sessions`, {
+    credentials: "include",
+  });
+  return parseApiResponse(res, "Failed to load signed-in devices.");
+}
+
+export async function revokeSession(sessionId) {
+  const res = await fetch(`${BASE_URL}/user/sessions/${sessionId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    return parseApiResponse(res, "Failed to sign out this device.");
+  }
+
+  return null;
+}
+
 /**
  * Update the current user's password
  */
