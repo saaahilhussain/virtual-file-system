@@ -1,4 +1,5 @@
 const BASE_URL = import.meta.env.VITE_BACKEND_BASE_URI;
+import { parseApiResponse } from "./apiResponse";
 
 /**
  * Fetch current logged-in user info
@@ -136,19 +137,7 @@ export async function updatePassword(payload) {
     credentials: "include",
   });
 
-  const data = await res.json();
-
-  if (!res.ok) {
-    const message =
-      typeof data.error === "string"
-        ? data.error
-        : data.error
-          ? "Failed to update password"
-          : "Failed to update password";
-    throw new Error(message);
-  }
-
-  return data;
+  return parseApiResponse(res, "Failed to update password");
 }
 
 /**

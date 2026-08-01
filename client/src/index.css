@@ -189,10 +189,11 @@
   margin-top: 14px;
   padding: 12px 14px;
   border-radius: var(--radius-sm);
-  background: #eef7ed;
-  color: #33562d;
-  border: 1px solid #c8e5c2;
+  background: #ecfdf3;
+  color: #166534;
+  border: 1px solid #86efac;
   font-size: 14px;
+  font-weight: 500;
 }
 
 .profile-form-actions {
@@ -218,9 +219,9 @@ body.dark-mode .profile-avatar {
 }
 
 body.dark-mode .profile-success {
-  background: rgba(74, 99, 72, 0.18);
-  color: #d7ead4;
-  border-color: rgba(226, 232, 222, 0.24);
+  background: rgba(34, 197, 94, 0.16);
+  color: #bbf7d0;
+  border-color: rgba(74, 222, 128, 0.42);
 }
 
 @media (max-width: 768px) {

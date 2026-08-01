@@ -23,7 +23,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           cache-dependency-path: client/package-lock.json
 
@@ -32,6 +32,8 @@ jobs:
 
       - name: Build Application
         run: npm run build
+        env:
+          VITE_BACKEND_BASE_URI: ${{ secrets.VITE_BACKEND_BASE_URI }}
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4

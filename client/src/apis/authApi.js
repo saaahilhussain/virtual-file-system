@@ -1,4 +1,5 @@
 const BASE_URL = import.meta.env.VITE_BACKEND_BASE_URI;
+import { parseApiResponse } from "./apiResponse";
 
 /**
  * Send OTP to email
@@ -12,13 +13,7 @@ export async function sendOtp(email) {
     body: JSON.stringify({ email }),
   });
 
-  const data = await res.json();
-  
-  if (!res.ok) {
-    throw new Error(data.error || "Failed to send OTP");
-  }
-  
-  return data;
+  return parseApiResponse(res, "Failed to send OTP");
 }
 
 /**
@@ -33,13 +28,7 @@ export async function verifyOtp(email, otp) {
     body: JSON.stringify({ email, otp }),
   });
 
-  const data = await res.json();
-  
-  if (!res.ok) {
-    throw new Error(data.error || "Failed to verify OTP");
-  }
-  
-  return data;
+  return parseApiResponse(res, "Failed to verify OTP");
 }
 
 export async function requestPasswordReset(email) {
@@ -48,10 +37,7 @@ export async function requestPasswordReset(email) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
   });
-  const data = await res.json();
-
-  if (!res.ok) throw new Error(data.error || "Failed to send reset code");
-  return data;
+  return parseApiResponse(res, "Failed to send reset code");
 }
 
 export async function verifyPasswordReset(email, otp) {
@@ -60,10 +46,7 @@ export async function verifyPasswordReset(email, otp) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, otp }),
   });
-  const data = await res.json();
-
-  if (!res.ok) throw new Error(data.error || "Failed to verify reset code");
-  return data;
+  return parseApiResponse(res, "Failed to verify reset code");
 }
 
 export async function completePasswordReset(payload) {
@@ -73,8 +56,5 @@ export async function completePasswordReset(payload) {
     body: JSON.stringify(payload),
     credentials: "include",
   });
-  const data = await res.json();
-
-  if (!res.ok) throw new Error(data.error || "Failed to reset password");
-  return data;
+  return parseApiResponse(res, "Failed to reset password");
 }
