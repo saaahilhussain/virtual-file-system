@@ -54,6 +54,43 @@ const formatDate = (timestamp) => {
   });
 };
 
+function ProfileSettingsSkeleton() {
+  return (
+    <div className="account-settings-stack" aria-label="Loading account settings">
+      <section className="account-settings-card">
+        <div className="account-section-heading">
+          <span className="loading-skeleton loading-skeleton-kicker" />
+          <span className="loading-skeleton loading-skeleton-heading" />
+          <span className="loading-skeleton loading-skeleton-copy" />
+        </div>
+        <div className="account-identity-body">
+          <span className="loading-skeleton loading-skeleton-avatar" />
+          <div className="loading-skeleton-stack">
+            <span className="loading-skeleton loading-skeleton-name" />
+            <span className="loading-skeleton loading-skeleton-email" />
+          </div>
+        </div>
+      </section>
+      {["access", "plan", "security", "sessions"].map((section) => (
+        <section className="account-settings-card" key={section}>
+          <div className="account-section-heading">
+            <span className="loading-skeleton loading-skeleton-kicker" />
+            <span className="loading-skeleton loading-skeleton-heading" />
+            <span className="loading-skeleton loading-skeleton-copy" />
+          </div>
+          <div className="account-profile-skeleton-row">
+            <span className="loading-skeleton loading-skeleton-icon" />
+            <div className="loading-skeleton-stack">
+              <span className="loading-skeleton loading-skeleton-name" />
+              <span className="loading-skeleton loading-skeleton-email" />
+            </div>
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
 function Profile() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -283,7 +320,10 @@ function Profile() {
             </div>
           )}
 
-          <div className="account-settings-stack">
+          {loading ? (
+            <ProfileSettingsSkeleton />
+          ) : user ? (
+            <div className="account-settings-stack">
             <section className="account-settings-card account-identity-card">
               <div className="account-section-heading">
                 <div>
@@ -294,15 +334,15 @@ function Profile() {
               </div>
               <div className="account-identity-body">
                 <div className="profile-avatar account-identity-avatar">
-                  {user?.picture ? (
-                    <img src={user.picture} alt={user?.name || "Profile"} />
+                  {user.picture ? (
+                    <img src={user.picture} alt={user.name} />
                   ) : (
-                    <span>{user?.name?.charAt(0)?.toUpperCase() || "U"}</span>
+                    <span>{user.name.charAt(0).toUpperCase()}</span>
                   )}
                 </div>
                 <div>
-                  <h3>{user?.name || "Your account"}</h3>
-                  <p>{user?.email || "Loading account details..."}</p>
+                  <h3>{user.name}</h3>
+                  <p>{user.email}</p>
                 </div>
               </div>
             </section>
@@ -341,14 +381,19 @@ function Profile() {
               <div className="account-section-heading account-section-heading-action">
                 <div>
                   <p className="account-section-kicker">Storage plan</p>
-                  <h2>{planLoading ? "Loading plan..." : planName}</h2>
-                  <p>
-                    {planLoading
-                      ? "Checking your storage plan."
-                      : subscription
+                  {planLoading ? (
+                    <div className="loading-skeleton-stack account-plan-loading">
+                      <span className="loading-skeleton loading-skeleton-heading" />
+                      <span className="loading-skeleton loading-skeleton-copy" />
+                    </div>
+                  ) : (
+                    <>
+                      <h2>{planName}</h2>
+                      <p>{subscription
                       ? `${planStatus.charAt(0).toUpperCase()}${planStatus.slice(1)} subscription`
-                      : "Your current free storage plan."}
-                  </p>
+                      : "Your current free storage plan."}</p>
+                    </>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -361,13 +406,14 @@ function Profile() {
               <div className="account-plan-stats">
                 <div>
                   <span>Storage included</span>
-                  <strong>{formatBytes(user?.maxStorage)}</strong>
+                  <strong>{formatBytes(user.maxStorage)}</strong>
                 </div>
                 <div>
                   <span>{subscription ? "Next billing" : "Plan status"}</span>
                   <strong>
-                    {planLoading
-                      ? "Loading..."
+                    {planLoading ? (
+                      <span className="loading-skeleton loading-skeleton-meta" />
+                    )
                       : billingLoading
                       ? "Loading billing details..."
                       : renewalDate || (subscription ? "Not scheduled" : "Free plan")}
@@ -497,7 +543,13 @@ function Profile() {
               </div>
               <div className="account-device-list">
                 {sessionsLoading ? (
-                  <p className="account-empty-state">Loading signed-in devices...</p>
+                  <div className="account-profile-skeleton-row">
+                    <span className="loading-skeleton loading-skeleton-icon" />
+                    <div className="loading-skeleton-stack">
+                      <span className="loading-skeleton loading-skeleton-name" />
+                      <span className="loading-skeleton loading-skeleton-email" />
+                    </div>
+                  </div>
                 ) : sessions.length ? (
                   sessions.map((session) => (
                     <div className="account-device-row" key={session.id}>
@@ -531,6 +583,7 @@ function Profile() {
               </div>
             </section>
           </div>
+          ) : null}
         </div>
       </main>
 

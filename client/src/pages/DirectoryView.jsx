@@ -21,6 +21,23 @@ import {
 } from "../apis/fileApi";
 import { fetchUser } from "../apis/userApi";
 
+function DirectoryListSkeleton() {
+  return (
+    <table className="files-table directory-skeleton-table" aria-label="Loading folder contents">
+      <tbody>
+        {Array.from({ length: 6 }, (_, index) => (
+          <tr key={index}>
+            <td><span className="loading-skeleton loading-skeleton-file" /></td>
+            <td><span className="loading-skeleton loading-skeleton-meta" /></td>
+            <td><span className="loading-skeleton loading-skeleton-type" /></td>
+            <td><span className="loading-skeleton loading-skeleton-action" /></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 function DirectoryView() {
   const BASE_URL = import.meta.env.VITE_BACKEND_BASE_URI;
   const { dirId } = useParams();
@@ -76,12 +93,17 @@ function DirectoryView() {
   /**
    * Fetch directory contents
    */
-  async function getDirectoryItemsHandler({ cursor = null, append = false } = {}) {
+  async function getDirectoryItemsHandler({
+    cursor = null,
+    append = false,
+    signal,
+  } = {}) {
     setErrorMessage(""); // clear any existing error
     if (append) setLoadingMore(true);
     else setDirectoryLoading(true);
     try {
-      const data = await getDirectoryItems(dirId, { cursor });
+      const data = await getDirectoryItems(dirId, { cursor, signal });
+      if (signal?.aborted) return;
 
       // Set directory name
       setDirectoryName(dirId ? data.name : "My Drive");
@@ -97,12 +119,14 @@ function DirectoryView() {
       );
       setNextCursor(data.nextCursor || null);
     } catch (error) {
+      if (error.name === "AbortError") return;
       if (error.message === "Unauthorized") {
         navigate("/login");
       } else {
         setErrorMessage(error.message);
       }
     } finally {
+      if (signal?.aborted) return;
       setDirectoryLoading(false);
       setLoadingMore(false);
     }
@@ -128,11 +152,16 @@ function DirectoryView() {
   }
 
   useEffect(() => {
+    const controller = new AbortController();
+    setItems([]);
     setNextCursor(null);
-    getDirectoryItemsHandler();
+    setBreadcrumbTrail([{ id: null, name: "All Files" }]);
+    setDirectoryLoading(true);
+    getDirectoryItemsHandler({ signal: controller.signal });
     getUserStorageInfo();
     // Reset context menu
     setActiveContextMenu(null);
+    return () => controller.abort();
   }, [dirId]);
 
   /**
@@ -555,11 +584,8 @@ function DirectoryView() {
             />
           )}
 
-          {directoryLoading && displayItems.length === 0 ? (
-            <div className="directory-loading-state" aria-live="polite">
-              <span className="directory-loading-spinner" aria-hidden="true" />
-              Loading files...
-            </div>
+          {directoryLoading ? (
+            <DirectoryListSkeleton />
           ) : displayItems.length === 0 ? (
             isAccessError ? (
               <p className="empty-state-text">

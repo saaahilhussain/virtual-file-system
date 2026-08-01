@@ -20,12 +20,16 @@ async function handleFetchErrors(response) {
 /**
  * Fetch directory contents and items
  */
-export async function getDirectoryItems(dirId, { cursor, limit = 100 } = {}) {
+export async function getDirectoryItems(
+  dirId,
+  { cursor, limit = 100, signal } = {},
+) {
   const params = new URLSearchParams({ limit: String(limit) });
   if (cursor) params.set("cursor", cursor);
 
   const response = await fetch(`${BASE_URL}/directory/${dirId || ""}?${params}`, {
     credentials: "include",
+    signal,
   });
 
   if (response.status === 401) {
