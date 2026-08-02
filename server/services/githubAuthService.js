@@ -2,8 +2,8 @@ import fetch from "node-fetch"; // Or use native fetch if Node version >= 18
 
 export const verifyGithubCode = async (code) => {
   const { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET } = process.env;
+  const redirectUri = process.env.GITHUB_REDIRECT_URI;
 
-  // 1. Exchange code for access token
   const tokenResponse = await fetch(
     "https://github.com/login/oauth/access_token",
     {
@@ -16,6 +16,7 @@ export const verifyGithubCode = async (code) => {
         client_id: GITHUB_CLIENT_ID,
         client_secret: GITHUB_CLIENT_SECRET,
         code,
+        redirect_uri: redirectUri,
       }),
     },
   );
@@ -27,10 +28,9 @@ export const verifyGithubCode = async (code) => {
       tokenData.error_description || "Failed to get GitHub access token",
     );
   }
- 
+
   const accessToken = tokenData.access_token;
 
-  // 2. Fetch user profile
   const userResponse = await fetch("https://api.github.com/user", {
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -40,7 +40,6 @@ export const verifyGithubCode = async (code) => {
 
   const userData = await userResponse.json();
 
-  // 3. Fetch user emails (since the primary email might be private)
   const emailsResponse = await fetch("https://api.github.com/user/emails", {
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -50,7 +49,6 @@ export const verifyGithubCode = async (code) => {
 
   const emailsData = await emailsResponse.json();
 
-  // Find the primary, verified email
   const primaryEmail = emailsData.find(
     (email) => email.primary && email.verified,
   );
