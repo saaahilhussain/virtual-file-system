@@ -145,6 +145,7 @@ try {
           "parentDirId",
           "isTrashed",
           "trashedAt",
+          "uploadCompletedAt",
         ],
         properties: {
           _id: {
@@ -169,6 +170,9 @@ try {
             bsonType: "bool",
           },
           trashedAt: {
+            bsonType: ["date", "null"],
+          },
+          uploadCompletedAt: {
             bsonType: ["date", "null"],
           },
           createdAt: {

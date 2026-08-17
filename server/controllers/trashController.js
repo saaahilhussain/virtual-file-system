@@ -1,6 +1,6 @@
-import { rm } from "fs/promises";
 import Directory from "../models/directoryModel.js";
 import File from "../models/fileModel.js";
+import { deleteS3Files } from "../services/s3Service.js";
 
 export const getTrash = async (req, res, next) => {
   try {
@@ -33,17 +33,16 @@ export const getTrash = async (req, res, next) => {
 export const emptyTrash = async (req, res, next) => {
   try {
     const userId = req.user._id;
-
     const trashedFiles = await File.find({ userId, isTrashed: true }).lean();
 
-    // Delete files from filesystem
-    for (const { _id, extension } of trashedFiles) {
-      await rm(`./storage/${_id.toString()}${extension}`, {
-        force: true,
-      }).catch(() => {});
+    if (trashedFiles.length > 0) {
+      await deleteS3Files(
+        trashedFiles.map(({ _id, extension }) => ({
+          Key: `${_id.toString()}${extension}`,
+        })),
+      );
     }
 
-    // Delete from DB
     await File.deleteMany({ userId, isTrashed: true });
     await Directory.deleteMany({ userId, isTrashed: true });
 

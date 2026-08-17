@@ -2,10 +2,8 @@ import express from "express";
 import validateIdMiddleware from "../middlewares/validateIdMiddleware.js";
 
 import {
-  // deleteFile,
   getFile,
   renameFile,
-  uploadFile,
   trashFile,
   restoreFile,
   permanentlyDeleteFile,
@@ -15,15 +13,11 @@ import {
 } from "../controllers/fileController.js";
 
 const router = express.Router();
-
-router.param("parentDirId", validateIdMiddleware);
 router.param("id", validateIdMiddleware);
 
 router.post("/upload/initiate", uploadInitiate);
 router.post("/upload/complete", uploadComplete);
 router.delete("/upload/cancel", uploadCancel);
-
-router.post("/:parentDirId?", uploadFile);
 
 router.get("/:id", getFile);
 

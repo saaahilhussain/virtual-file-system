@@ -1,5 +1,5 @@
 export const ROLES = {
-  Owner: [
+  owner: [
     "user:view",
     "user:soft_delete",
     "user:restore",
@@ -12,7 +12,7 @@ export const ROLES = {
     "role:assign:any",
   ],
 
-  Admin: [
+  admin: [
     "user:view",
     "user:soft_delete",
     "role:assign",
@@ -20,14 +20,14 @@ export const ROLES = {
     "role:assign:limited",
   ],
 
-  Manager: [
+  manager: [
     "user:view",
     "role:assign:basic",
-    "user:logout"
+    "user:logout",
     // "file:view:any",
     // "file:create:any",
     // "file:update:any",
   ],
 
-  User: [] // implicit
+  user: [], // implicit
 };

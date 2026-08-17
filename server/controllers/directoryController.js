@@ -1,9 +1,7 @@
 import { ObjectId } from "mongodb";
-import { rm } from "fs/promises";
 import Directory from "../models/directoryModel.js";
 import File from "../models/fileModel.js";
 import { deleteS3Files } from "../services/s3Service.js";
-import { response } from "express";
 
 const DEFAULT_PAGE_SIZE = 100;
 const MAX_PAGE_SIZE = 100;
@@ -69,17 +67,53 @@ async function buildLegacyPathIds(directoryData, userId) {
   return pathIds;
 }
 
+async function collectDirectorySubtree(rootId, userId) {
+  const directoryIds = [];
+  const fileIds = [];
+  const fileKeys = [];
+  const queue = [new ObjectId(rootId)];
+
+  while (queue.length > 0) {
+    const currentId = queue.shift();
+    directoryIds.push(currentId);
+
+    const [childDirectories, childFiles] = await Promise.all([
+      Directory.find(
+        { parentDirId: currentId, userId },
+        { _id: 1 },
+      ).lean(),
+      File.find(
+        { parentDirId: currentId, userId },
+        { _id: 1, extension: 1 },
+      ).lean(),
+    ]);
+
+    childDirectories.forEach(({ _id }) => {
+      queue.push(_id);
+    });
+
+    childFiles.forEach(({ _id, extension }) => {
+      fileIds.push(_id);
+      fileKeys.push({ Key: `${_id}${extension}` });
+    });
+  }
+
+  return { directoryIds, fileIds, fileKeys };
+}
+
 export const getDirectory = async (req, res) => {
   const { rootDirId } = req.user;
   const id = req.params.id || rootDirId;
   const requestedLimit = Number.parseInt(req.query.limit, 10);
   const limit = Math.min(
-    Math.max(Number.isFinite(requestedLimit) ? requestedLimit : DEFAULT_PAGE_SIZE, 1),
+    Math.max(
+      Number.isFinite(requestedLimit) ? requestedLimit : DEFAULT_PAGE_SIZE,
+      1,
+    ),
     MAX_PAGE_SIZE,
   );
   const cursor = decodeCursor(req.query.cursor);
 
-  // Find the directory and verify ownership
   const directoryData = await Directory.findOne({
     _id: id,
     userId: req.user._id,
@@ -124,6 +158,7 @@ export const getDirectory = async (req, res) => {
     parentDirId: new ObjectId(id),
     userId: new ObjectId(req.user._id),
     isTrashed: false,
+    uploadCompletedAt: { $ne: null },
   };
   const cursorMatch = cursor
     ? {
@@ -193,10 +228,11 @@ export const createDirectory = async (req, res, next) => {
       userId: user._id,
     }).lean();
 
-    if (!parentDir)
+    if (!parentDir) {
       return res
         .status(404)
         .json({ message: "Parent Directory Does not exist!" });
+    }
 
     const newDirId = new ObjectId();
     const parentPath =
@@ -243,186 +279,142 @@ export const trashDirectory = async (req, res, next) => {
   const { id } = req.params;
   const user = req.user;
 
-  const directoryData = await Directory.findOne(
-    {
-      _id: new ObjectId(id),
-      userId: user._id,
-    },
-    { _id: 1, parentDirId: 1, size: 1, isTrashed: 1 },
-  );
+  try {
+    const directoryData = await Directory.findOne(
+      {
+        _id: new ObjectId(id),
+        userId: user._id,
+      },
+      { _id: 1, parentDirId: 1, size: 1, isTrashed: 1 },
+    );
 
-  if (!directoryData)
-    return res.status(404).json({ error: "Directory not found" });
-
-  if (directoryData.isTrashed) {
-    return res.json({ message: "Directory moved to trash" });
-  }
-
-  const trashedAt = new Date();
-
-  async function trashDirContent(idx) {
-    let files = await File.find(
-      { parentDirId: new ObjectId(idx) },
-      { _id: 1 },
-    ).lean();
-    let directories = await Directory.find(
-      { parentDirId: new ObjectId(idx) },
-      { _id: 1 },
-    ).lean();
-
-    for (const { _id } of directories) {
-      const { files: childFiles, directories: childDirectories } =
-        await trashDirContent(_id);
-
-      files = [...files, ...childFiles];
-      directories = [...directories, ...childDirectories];
+    if (!directoryData) {
+      return res.status(404).json({ error: "Directory not found" });
     }
 
-    return { files, directories };
-  }
+    if (directoryData.isTrashed) {
+      return res.json({ message: "Directory moved to trash" });
+    }
 
-  const { files, directories } = await trashDirContent(id);
+    const { directoryIds, fileIds } = await collectDirectorySubtree(id, user._id);
+    const trashedAt = new Date();
 
-  if (files.length > 0) {
-    await File.updateMany(
-      { _id: { $in: files.map(({ _id }) => _id) } },
+    if (fileIds.length > 0) {
+      await File.updateMany(
+        { _id: { $in: fileIds }, userId: user._id },
+        { $set: { isTrashed: true, trashedAt } },
+      );
+    }
+
+    await Directory.updateMany(
+      { _id: { $in: directoryIds }, userId: user._id },
       { $set: { isTrashed: true, trashedAt } },
     );
+
+    await updateAncestorSizes(
+      directoryData.parentDirId,
+      -(Number(directoryData.size) || 0),
+    );
+
+    return res.json({ message: "Directory moved to trash" });
+  } catch (err) {
+    next(err);
   }
-
-  await Directory.updateMany(
-    { _id: { $in: [...directories.map(({ _id }) => _id), new ObjectId(id)] } },
-    { $set: { isTrashed: true, trashedAt } },
-  );
-
-  await updateAncestorSizes(
-    directoryData.parentDirId,
-    -(Number(directoryData.size) || 0),
-  );
-
-  return res.json({ message: "Directory moved to trash" });
 };
 
 export const restoreDirectory = async (req, res, next) => {
   const { id } = req.params;
   const user = req.user;
 
-  const directoryData = await Directory.findOne(
-    {
-      _id: new ObjectId(id),
-      userId: user._id,
-    },
-    { _id: 1, parentDirId: 1, size: 1, isTrashed: 1 },
-  );
+  try {
+    const directoryData = await Directory.findOne(
+      {
+        _id: new ObjectId(id),
+        userId: user._id,
+      },
+      { _id: 1, parentDirId: 1, size: 1, isTrashed: 1 },
+    );
 
-  if (!directoryData)
-    return res.status(404).json({ error: "Directory not found" });
-
-  if (!directoryData.isTrashed) {
-    return res.json({ message: "Directory restored" });
-  }
-
-  async function restoreDirContent(idx) {
-    let files = await File.find(
-      { parentDirId: new ObjectId(idx) },
-      { _id: 1 },
-    ).lean();
-    let directories = await Directory.find(
-      { parentDirId: new ObjectId(idx) },
-      { _id: 1 },
-    ).lean();
-
-    for (const { _id } of directories) {
-      const { files: childFiles, directories: childDirectories } =
-        await restoreDirContent(_id);
-
-      files = [...files, ...childFiles];
-      directories = [...directories, ...childDirectories];
+    if (!directoryData) {
+      return res.status(404).json({ error: "Directory not found" });
     }
 
-    return { files, directories };
-  }
+    if (!directoryData.isTrashed) {
+      return res.json({ message: "Directory restored" });
+    }
 
-  const { files, directories } = await restoreDirContent(id);
+    const { directoryIds, fileIds } = await collectDirectorySubtree(id, user._id);
 
-  if (files.length > 0) {
-    await File.updateMany(
-      { _id: { $in: files.map(({ _id }) => _id) } },
+    if (fileIds.length > 0) {
+      await File.updateMany(
+        { _id: { $in: fileIds }, userId: user._id },
+        { $set: { isTrashed: false, trashedAt: null } },
+      );
+    }
+
+    await Directory.updateMany(
+      { _id: { $in: directoryIds }, userId: user._id },
       { $set: { isTrashed: false, trashedAt: null } },
     );
+
+    await updateAncestorSizes(
+      directoryData.parentDirId,
+      Number(directoryData.size) || 0,
+    );
+
+    return res.json({ message: "Directory restored" });
+  } catch (err) {
+    next(err);
   }
-
-  await Directory.updateMany(
-    { _id: { $in: [...directories.map(({ _id }) => _id), new ObjectId(id)] } },
-    { $set: { isTrashed: false, trashedAt: null } },
-  );
-
-  await updateAncestorSizes(
-    directoryData.parentDirId,
-    Number(directoryData.size) || 0,
-  );
-
-  return res.json({ message: "Directory restored" });
 };
 
 export const permanentlyDeleteDirectory = async (req, res, next) => {
   const { id } = req.params;
   const user = req.user;
 
-  const directoryData = await Directory.findOne(
-    {
-      _id: new ObjectId(id),
-      userId: user._id,
-    },
-    { _id: 1, parentDirId: 1, size: 1, isTrashed: 1 },
-  );
+  try {
+    const directoryData = await Directory.findOne(
+      {
+        _id: new ObjectId(id),
+        userId: user._id,
+      },
+      { _id: 1, parentDirId: 1, size: 1, isTrashed: 1 },
+    );
 
-  if (!directoryData)
-    return res.status(404).json({ error: "Directory not found" });
-
-  async function getDirContent(idx) {
-    let files = await File.find(
-      { parentDirId: new ObjectId(idx) },
-      { extension: 1 },
-    ).lean();
-    let directories = await Directory.find(
-      { parentDirId: new ObjectId(idx) },
-      { _id: 1 },
-    ).lean();
-
-    for (const { _id } of directories) {
-      const { files: childFiles, directories: childDirectories } =
-        await getDirContent(_id);
-
-      files = [...files, ...childFiles];
-      directories = [...directories, ...childDirectories];
+    if (!directoryData) {
+      return res.status(404).json({ error: "Directory not found" });
     }
 
-    return { files, directories };
-  }
-
-  const { files, directories } = await getDirContent(id);
-
-  if (!directoryData.isTrashed) {
-    await updateAncestorSizes(
-      directoryData.parentDirId,
-      -(Number(directoryData.size) || 0),
+    const { directoryIds, fileIds, fileKeys } = await collectDirectorySubtree(
+      id,
+      user._id,
     );
-  }
 
-  const keys = files.map(({ _id, extension }) => ({
-    Key: `${_id}${extension}`,
-  }));
-  await deleteS3Files(keys);
+    if (!directoryData.isTrashed) {
+      await updateAncestorSizes(
+        directoryData.parentDirId,
+        -(Number(directoryData.size) || 0),
+      );
+    }
 
-  if (files.length > 0) {
-    await File.deleteMany({
-      _id: { $in: files.map(({ _id }) => _id) },
+    if (fileKeys.length > 0) {
+      await deleteS3Files(fileKeys);
+    }
+
+    if (fileIds.length > 0) {
+      await File.deleteMany({
+        _id: { $in: fileIds },
+        userId: user._id,
+      });
+    }
+
+    await Directory.deleteMany({
+      _id: { $in: directoryIds },
+      userId: user._id,
     });
-  }
-  await Directory.deleteMany({
-    _id: { $in: [...directories.map(({ _id }) => _id), new ObjectId(id)] },
-  });
 
-  return res.json({ message: "Directory permanently deleted" });
+    return res.json({ message: "Directory permanently deleted" });
+  } catch (err) {
+    next(err);
+  }
 };

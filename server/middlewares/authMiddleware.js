@@ -18,7 +18,7 @@ export default async function checkAuth(req, res, next) {
   req.user = {
     _id: session.userId,
     rootDirId: session.rootDirId,
-    role: session.role || "user",
+    role: String(session.role || "user").toLowerCase(),
   };
   req.sessionId = sid;
   // Activity tracking should never add a network round trip to every API request.
@@ -42,7 +42,7 @@ export const requirePermissionMiddleware = (requiredPermission) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const role = req.user.role;
+    const role = String(req.user.role).toLowerCase();
     const rolePermissions = ROLES[role];
 
     // 2. Role sanity check

@@ -39,6 +39,10 @@ const fileSchema = new Schema(
       type: Date,
       default: null,
     },
+    uploadCompletedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { strict: "throw" },
 );
