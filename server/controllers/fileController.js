@@ -1,6 +1,7 @@
 import path from "path";
 import Directory from "../models/directoryModel.js";
 import File from "../models/fileModel.js";
+import Share from "../models/shareModel.js";
 import User from "../models/userModel.js";
 import {
   createSignedUploadUrl,
@@ -190,6 +191,7 @@ export const permanentlyDeleteFile = async (req, res, next) => {
     }
 
     await File.deleteOne({ _id: file._id });
+    await Share.deleteMany({ fileId: file._id });
     await deleteS3File(`${file.id}${file.extension}`);
     return res.status(200).json({ message: "File Deleted Permanently" });
   } catch (err) {

@@ -191,6 +191,90 @@ try {
     validationAction: "error",
     validationLevel: "strict",
   });
+
+  const sharesValidator = {
+    $jsonSchema: {
+      bsonType: "object",
+      required: [
+        "_id",
+        "token",
+        "resourceType",
+        "ownerId",
+        "accessType",
+        "allowedEmails",
+        "isActive",
+        "expiresAt",
+        "createdAt",
+        "updatedAt",
+      ],
+      properties: {
+        _id: {
+          bsonType: "objectId",
+        },
+        token: {
+          bsonType: "string",
+          minLength: 20,
+        },
+        resourceType: {
+          enum: ["file", "directory"],
+        },
+        fileId: {
+          bsonType: ["objectId", "null"],
+        },
+        directoryId: {
+          bsonType: ["objectId", "null"],
+        },
+        ownerId: {
+          bsonType: "objectId",
+        },
+        accessType: {
+          enum: ["public", "restricted"],
+        },
+        allowedEmails: {
+          bsonType: "array",
+          items: {
+            bsonType: "string",
+          },
+        },
+        isActive: {
+          bsonType: "bool",
+        },
+        expiresAt: {
+          bsonType: ["date", "null"],
+        },
+        createdAt: {
+          bsonType: "date",
+        },
+        updatedAt: {
+          bsonType: "date",
+        },
+        __v: {
+          bsonType: "int",
+        },
+      },
+      additionalProperties: false,
+    },
+  };
+
+  // collMod fails on collections that don't exist yet, so create the shares
+  // collection with its validator the first time setup runs.
+  const sharesCollections = await db
+    .listCollections({ name: "shares" })
+    .toArray();
+  if (sharesCollections.length === 0) {
+    await db.createCollection("shares", {
+      validator: sharesValidator,
+      validationAction: "error",
+      validationLevel: "strict",
+    });
+  } else {
+    await db.command({
+      [command]: "shares",
+      validator: sharesValidator,
+      validationAction: "error",
+      validationLevel: "strict",
+    });
+  }
 } catch (error) {
   console.log(error);
   console.log("Error setting up database");

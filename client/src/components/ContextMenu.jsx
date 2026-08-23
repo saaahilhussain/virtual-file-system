@@ -1,5 +1,6 @@
 import { useState } from "react";
 import DetailsModal from "./DetailsModal";
+import ShareModal from "./ShareModal";
 
 function ContextMenu({
   item,
@@ -13,9 +14,14 @@ function ContextMenu({
   BASE_URL,
 }) {
   const [showDetails, setShowDetails] = useState(false);
+  const [showShare, setShowShare] = useState(false);
 
   const detailsModal = showDetails && (
     <DetailsModal item={item} onClose={() => setShowDetails(false)} />
+  );
+
+  const shareModal = showShare && (
+    <ShareModal item={item} onClose={() => setShowShare(false)} />
   );
 
   // Directory context menu
@@ -61,6 +67,31 @@ function ContextMenu({
               <path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
             </svg>
             Rename
+          </div>
+          <div
+            className="context-menu-item"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowShare(true);
+            }}
+          >
+            <svg
+              width="15"
+              height="15"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              viewBox="0 0 24 24"
+            >
+              <circle cx="18" cy="5" r="3" />
+              <circle cx="6" cy="12" r="3" />
+              <circle cx="18" cy="19" r="3" />
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+            </svg>
+            Share
           </div>
           <div className="context-menu-item">
             <svg
@@ -125,6 +156,7 @@ function ContextMenu({
           </div>
         </div>
         {detailsModal}
+        {shareModal}
       </>
     );
   } else {
@@ -224,6 +256,31 @@ function ContextMenu({
               </svg>
               Rename
             </div>
+            <div
+              className="context-menu-item"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowShare(true);
+              }}
+            >
+              <svg
+                width="15"
+                height="15"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+              </svg>
+              Share
+            </div>
             <div className="context-menu-item">
               <svg
                 width="15"
@@ -286,7 +343,8 @@ function ContextMenu({
               Move to Trash
             </div>
           </div>
-          {detailsModal}
+        {detailsModal}
+        {shareModal}
         </>
       );
     }

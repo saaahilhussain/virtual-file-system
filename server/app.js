@@ -8,6 +8,8 @@ import authRoutes from "./routes/authRoutes.js";
 import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 import trashRoutes from "./routes/trashRoutes.js";
 import usersRoutes from "./routes/usersRoutes.js";
+import shareRoutes from "./routes/shareRoutes.js";
+import publicShareRoutes from "./routes/publicShareRoutes.js";
 import checkAuth, { checkIsNotUser } from "./middlewares/authMiddleware.js";
 import { connectDB } from "./config/db.js";
 import { webhookController } from "./controllers/webhookController.js";
@@ -46,10 +48,12 @@ app.use("/file", checkAuth, fileRoutes);
 app.use("/trash", checkAuth, trashRoutes);
 app.use("/users", checkAuth, checkIsNotUser, usersRoutes);
 app.use("/subscriptions", checkAuth, subscriptionRoutes);
+app.use("/share", checkAuth, shareRoutes);
 
 // UNPROTECTED ROUTES
 app.use("/user", userRoutes);
 app.use("/auth", authRoutes);
+app.use("/public/share", publicShareRoutes);
 
 // WEBHOOK//
 app.post("/api/billing/webhook", webhookController);

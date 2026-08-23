@@ -35,6 +35,35 @@ export function checkIsNotUser(req, res, next) {
   return res.status(403).json({ error: "Unauthorised to access users" });
 }
 
+/**
+ * Attaches req.user when a valid session cookie exists but never rejects
+ * anonymous visitors. Used by public endpoints that personalize access
+ * (e.g. email-restricted share links) without requiring sign-in.
+ */
+export async function optionalAuth(req, res, next) {
+  try {
+    const { sid } = req.signedCookies || {};
+    if (!sid) return next();
+
+    const redisKey = `session:${sid}`;
+    const session = await redisClient.json.get(redisKey);
+    if (!session) return next();
+
+    req.user = {
+      _id: session.userId,
+      rootDirId: session.rootDirId,
+      role: String(session.role || "user").toLowerCase(),
+    };
+    req.sessionId = sid;
+    redisClient.json
+      .set(redisKey, "$.lastActiveAt", new Date().toISOString())
+      .catch((error) => console.error("Unable to update session activity", error));
+    return next();
+  } catch (err) {
+    return next(err);
+  }
+}
+
 export const requirePermissionMiddleware = (requiredPermission) => {
   return (req, res, next) => {
     // 1. Auth guard

@@ -15,6 +15,7 @@ import UsersView from "./pages/UsersView";
 import GitHubCallback from "./pages/GitHubCallback";
 import Profile from "./pages/Profile";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import ShareView from "./pages/ShareView";
 import { fetchUser } from "./apis/userApi";
 
 function RoleGuard({ children }) {
@@ -66,6 +67,7 @@ const router = createBrowserRouter([
   { path: "/trash", element: <TrashView /> },
   { path: "/profile", element: <Profile /> },
   { path: "/privacy", element: <PrivacyPolicy /> },
+  { path: "/share/:token", element: <ShareView /> },
   {
     path: "/users",
     element: (

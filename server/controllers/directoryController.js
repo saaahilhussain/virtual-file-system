@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb";
 import Directory from "../models/directoryModel.js";
 import File from "../models/fileModel.js";
+import Share from "../models/shareModel.js";
 import { deleteS3Files } from "../services/s3Service.js";
 
 const DEFAULT_PAGE_SIZE = 100;
@@ -158,6 +159,11 @@ export const getDirectory = async (req, res) => {
     parentDirId: new ObjectId(id),
     userId: new ObjectId(req.user._id),
     isTrashed: false,
+  };
+  // Directories never have uploadCompletedAt, and a missing field matches
+  // $ne: null in Mongo — so this guard must apply to files only.
+  const fileMatch = {
+    ...childMatch,
     uploadCompletedAt: { $ne: null },
   };
   const cursorMatch = cursor
@@ -170,7 +176,7 @@ export const getDirectory = async (req, res) => {
     : {};
 
   const page = await File.aggregate([
-    { $match: { ...childMatch, ...cursorMatch } },
+    { $match: { ...fileMatch, ...cursorMatch } },
     {
       $project: {
         name: 1,
@@ -411,6 +417,13 @@ export const permanentlyDeleteDirectory = async (req, res, next) => {
     await Directory.deleteMany({
       _id: { $in: directoryIds },
       userId: user._id,
+    });
+
+    await Share.deleteMany({
+      $or: [
+        { fileId: { $in: fileIds } },
+        { directoryId: { $in: directoryIds } },
+      ],
     });
 
     return res.json({ message: "Directory permanently deleted" });
