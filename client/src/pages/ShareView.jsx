@@ -77,6 +77,31 @@ function ShareView() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
 
+  // Dark mode state (same pattern as TopBar / PreAuthHeader)
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem("theme") === "dark";
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+      document.body.classList.add("dark-mode");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.body.classList.remove("dark-mode");
+      localStorage.setItem("theme", "light");
+    }
+  }, [darkMode]);
+
+  // Paint the body with the canvas color so no white strip shows below
+  // the page when the viewport is taller than the content.
+  useEffect(() => {
+    const previousBackground = document.body.style.background;
+    document.body.style.background = "var(--bg-canvas)";
+    return () => {
+      document.body.style.background = previousBackground;
+    };
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -128,7 +153,10 @@ function ShareView() {
   const fileShare = data?.resourceType === "file" ? data.item : null;
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--bg-canvas)" }}>
+    <div
+      className="share-view min-h-dvh flex flex-col"
+      style={{ background: "var(--bg-canvas)" }}
+    >
       <header
         className="flex justify-between items-center px-10 py-5 box-border sticky top-0 z-50"
         style={{
@@ -137,12 +165,55 @@ function ShareView() {
         }}
       >
         <BrandMark />
-        <span style={{ color: "var(--text-tertiary)", fontSize: 14 }}>
-          Shared via File Shelter
-        </span>
+        <div className="flex items-center gap-4">
+          <span style={{ color: "var(--text-tertiary)", fontSize: 14 }}>
+            Shared via File Shelter
+          </span>
+          <button
+            className="theme-toggle"
+            onClick={() => setDarkMode((prev) => !prev)}
+            title="Toggle dark mode"
+            type="button"
+          >
+            <svg
+              className="icon-sun"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="5" />
+              <line x1="12" y1="1" x2="12" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="23" />
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+              <line x1="1" y1="12" x2="3" y2="12" />
+              <line x1="21" y1="12" x2="23" y2="12" />
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+            </svg>
+            <svg
+              className="icon-moon"
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+            </svg>
+          </button>
+        </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-12">
+      <main className="max-w-3xl w-full mx-auto px-4 py-12 flex-1">
         {loading && (
           <p style={{ color: "var(--text-tertiary)" }}>Loading…</p>
         )}
@@ -159,8 +230,12 @@ function ShareView() {
                 </p>
                 <Link
                   to="/login"
-                  className="px-7 py-3 rounded-full no-underline font-medium text-white"
-                  style={{ background: "var(--accent-black)" }}
+                  className="px-7 py-3 rounded-full no-underline font-medium"
+                  style={{
+                    color: "var(--text-primary)",
+                    border: "1px solid var(--border-subtle)",
+                    background: "var(--bg-surface)",
+                  }}
                 >
                   Sign in
                 </Link>
@@ -198,13 +273,31 @@ function ShareView() {
                 <span style={{ color: "var(--text-tertiary)", fontSize: 14 }}>
                   {formatSize(fileShare.size)}
                 </span>
-                <a
-                  href={downloadUrl(token, fileShare.id)}
-                  className="px-7 py-3 rounded-full no-underline font-medium text-white mt-2 inline-flex items-center gap-2"
-                  style={{ background: "var(--accent-black)" }}
-                >
-                  Download
-                </a>
+                <div className="flex items-center gap-3 mt-2">
+                  <a
+                    href={downloadUrl(token, fileShare.id, "preview")}
+                    className="px-6 py-3 rounded-full no-underline font-medium inline-flex items-center"
+                    style={{
+                      color: "var(--text-primary)",
+                      border: "1px solid var(--border-subtle)",
+                      background: "var(--bg-surface)",
+                    }}
+                  >
+                    View
+                  </a>
+                  <a
+                    href={downloadUrl(token, fileShare.id)}
+                    download=""
+                    className="px-7 py-3 rounded-full no-underline font-medium inline-flex items-center"
+                    style={{
+                      color: "var(--text-primary)",
+                      border: "1px solid var(--border-subtle)",
+                      background: "var(--bg-surface)",
+                    }}
+                  >
+                    Download
+                  </a>
+                </div>
               </div>
             )}
 
@@ -267,6 +360,18 @@ function ShareView() {
                           <span className="text-xs shrink-0" style={{ color: "var(--text-tertiary)" }}>
                             {formatSize(entry.size)}
                           </span>
+                          <a
+                            href={downloadUrl(token, entry.id, "preview")}
+                            onClick={(e) => e.stopPropagation()}
+                            className="shrink-0 no-underline text-sm px-4 py-1.5 rounded-full mr-2"
+                            style={{
+                              color: "var(--text-primary)",
+                              border: "1px solid var(--border-subtle)",
+                              background: "var(--bg-surface)",
+                            }}
+                          >
+                            View
+                          </a>
                           <a
                             href={downloadUrl(token, entry.id)}
                             onClick={(e) => e.stopPropagation()}

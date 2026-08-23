@@ -17,6 +17,9 @@ const Login = () => {
   // serverError will hold the error message from the server
   const [serverError, setServerError] = useState("");
 
+  // True while any login request is in flight (swaps the form title)
+  const [loggingIn, setLoggingIn] = useState(false);
+
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from || "/app";
@@ -65,10 +68,14 @@ const Login = () => {
 
         {/* Form Header */}
         <div className="form-header">
-          <h2 className="form-title">Welcome Back</h2>
-          <p className="form-subtitle">
-            Enter your details to access your vault.
-          </p>
+          <h2 className="form-title">
+            {loggingIn ? "Logging you in, please wait..." : "Welcome Back"}
+          </h2>
+          {!loggingIn && (
+            <p className="form-subtitle">
+              Enter your details to access your vault.
+            </p>
+          )}
           {loginNotice ? (
             <p
               style={{
@@ -135,14 +142,22 @@ const Login = () => {
         <div style={{ display: "flex", justifyContent: "center" }}>
           <GoogleLogin
             onSuccess={async (credentialResponse) => {
-              const data = await loginWithGoogle(credentialResponse.credential);
-              if (data.error) {
-                console.log(data);
-                return;
+              setLoggingIn(true);
+              try {
+                const data = await loginWithGoogle(
+                  credentialResponse.credential,
+                );
+                if (data.error) {
+                  console.log(data);
+                  return;
+                }
+                navigate(from, { replace: true });
+              } finally {
+                setLoggingIn(false);
               }
-              navigate(from, { replace: true });
             }}
             onError={() => {
+              setLoggingIn(false);
               console.log("Login Failed");
             }}
             theme="outline"
@@ -161,6 +176,7 @@ const Login = () => {
         >
           <GithubLogin
             onSuccess={async (code) => {
+              setLoggingIn(true);
               try {
                 const data = await loginWithGithub(code);
                 if (data.error) {
@@ -171,9 +187,12 @@ const Login = () => {
               } catch (error) {
                 console.error("GitHub Login Error:", error);
                 setServerError("Something went wrong with GitHub login.");
+              } finally {
+                setLoggingIn(false);
               }
             }}
             onError={() => {
+              setLoggingIn(false);
               setServerError("GitHub login failed.");
             }}
           />
