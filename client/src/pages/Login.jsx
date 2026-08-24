@@ -41,6 +41,7 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoggingIn(true);
 
     try {
       await loginUser(formData);
@@ -50,6 +51,8 @@ const Login = () => {
       setServerError(
         error.message || "Something went wrong. Please try again.",
       );
+    } finally {
+      setLoggingIn(false);
     }
   };
 
@@ -132,8 +135,8 @@ const Login = () => {
             <Link to="/forgot-password">Forgot password?</Link>
           </div>
 
-          <button type="submit" className="auth-submit-btn">
-            Login
+          <button type="submit" className="auth-submit-btn" disabled={loggingIn}>
+            {loggingIn ? "Logging you in..." : "Login"}
           </button>
         </form>
 
