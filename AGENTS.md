@@ -14,19 +14,24 @@ Author: Sahil Hussain. Portfolio/interview-focused project — see `FILE_SHELTER
 # Server (loads .env via node --env-file)
 cd server && npm run server        # dev with --watch
 cd server && npm run setup         # applies DB collMod $jsonSchema validators
+cd server && npm test              # 17 backend integration tests
 
 # Client
 cd client && npm run dev           # vite --host
 cd client && npm run lint          # eslint .
 ```
 
-No test suite yet (`client` has a stub `dummyTest.js`). Roadmap Phase 3 = add tests.
+The backend uses Vitest + Supertest with an in-memory MongoDB replica set and
+Redis test double. The client still has a stub `dummyTest.js`.
 
 ## Critical facts
 
 - **Auth is NOT JWT** — signed-cookie session ID (`sid`) stored in Redis as JSON (`session:<sid>`), with a legacy Mongo `Session` model still consulted by admin features. README's env/JWT claims are outdated.
 - **Env names**: real ones are `MONGODB_URI`, `SESSION_SECRET`, `S3_BUCKET`, `CLOUDFRONT_DOMAIN`, `RZP_*` (NOT `MONGO_URI`, `JWT_SECRET`, etc. as README says).
-- **Roles**: lowercase strings `"user" | "manager" | "admin" | "owner"` (userModel enum). `config/roles.js` defines permission arrays but `requirePermissionMiddleware` is NOT wired to routes — enforcement today is `checkIsNotUser` on `/users` plus in-controller checks.
+- **Roles**: lowercase strings `"user" | "manager" | "admin" | "owner"`
+  (userModel enum). Administrative `/users` routes enforce `config/roles.js`
+  permissions, while controller-level hierarchy checks prevent actors managing
+  peers or higher roles. Role changes and account deletion revoke Redis sessions.
 - **Quota model**: `user.maxStorageInBytes` (default 1GB free); plans map Razorpay plan IDs → quotas (Pro 200GB, Premium 2TB) via `config/plans.js`. Directory sizes roll up ancestors on upload/delete.
 - **Soft deletes everywhere**: `isTrashed`/`trashedAt` on files/dirs/users, `isDeleted` on users. Hard delete only via `/permanent` endpoints or empty-trash.
 - **Ownership scoping**: every file/dir query filters by `userId: req.user._id`.
@@ -41,6 +46,11 @@ No test suite yet (`client` has a stub `dummyTest.js`). Roadmap Phase 3 = add te
 
 ## Active roadmap (from FILE_SHELTER_ROADMAP.md)
 
-1. Correctness: fix `fileController.uploadComplete` cleanup paths; unify role naming; pick ONE upload architecture (local-stream vs presigned-S3 — both exist); recursive-dir partial failures.
-2. Hardening: zod validation beyond auth; rate limiting more endpoints; idempotent webhooks; transactions for user+rootDir, subscription+quota, delete+S3 cleanup; quota reconciliation.
-3. Tests → 4. Sharing feature (recommended) → 5. Observability → 6. Service-layer refactor.
+1. Reliability: add concurrent upload quota reservation, atomic/compensated
+   ancestor accounting, abandoned-upload cleanup, and recursive-delete retries.
+2. Hardening: extend Zod validation beyond auth/sharing; add webhook event
+   ordering/deduplication; make subscription+quota and delete+S3 cleanup
+   transaction-safe or compensating; add quota reconciliation.
+3. Tests: 17 backend integration tests currently pass and gate deployment;
+   extend coverage as reliability work lands. Sharing is implemented.
+4. Observability → 5. Service-layer refactor → 6. README/OpenAPI polish.

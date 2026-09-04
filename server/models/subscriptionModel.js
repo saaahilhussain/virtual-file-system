@@ -40,9 +40,16 @@ const subscriptionSchema = new Schema(
       type: String,
       enum: [
         "created",
+        "authenticated",
         "active",
-        "past_due",
+        "pending",
+        "halted",
         "paused",
+        "cancelled",
+        "completed",
+        "expired",
+        // Legacy values retained so existing records remain readable.
+        "past_due",
         "canceled",
         "in_grace",
         "complete",

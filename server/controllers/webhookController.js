@@ -16,8 +16,13 @@ const setUserQuota = async (userId, bytes) => {
 export const webhookController = async (req, res, next) => {
   try {
     const signature = req.headers["x-razorpay-signature"];
+    if (!signature || !Buffer.isBuffer(req.body)) {
+      return res.status(400).json({ error: "Invalid webhook request" });
+    }
+
+    const rawBody = req.body.toString("utf8");
     const isSignatureValid = Razorpay.validateWebhookSignature(
-      JSON.stringify(req.body),
+      rawBody,
       signature,
       process.env.WEBHOOK_SECRET,
     );
@@ -26,8 +31,9 @@ export const webhookController = async (req, res, next) => {
       return res.status(400).json({ error: "Invalid Signature" });
     }
 
-    const event = req.body.event;
-    const rzpSubscription = req.body.payload?.subscription?.entity;
+    const payload = JSON.parse(rawBody);
+    const event = payload.event;
+    const rzpSubscription = payload.payload?.subscription?.entity;
 
     if (!rzpSubscription) {
       return res.json({ received: true });
@@ -71,9 +77,18 @@ export const webhookController = async (req, res, next) => {
 
       case "subscription.paused":
       case "subscription.resumed":
-      case "subscription.halted": {
+      case "subscription.halted":
+      case "subscription.pending":
+      case "subscription.authenticated": {
         subscription.status = rzpSubscription.status;
         await subscription.save();
+        break;
+      }
+
+      case "subscription.expired": {
+        subscription.status = rzpSubscription.status;
+        await subscription.save();
+        await setUserQuota(subscription.userId, FREE_QUOTA_BYTES);
         break;
       }
 

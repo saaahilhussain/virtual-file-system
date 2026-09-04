@@ -13,7 +13,15 @@ try {
     validator: {
       $jsonSchema: {
         bsonType: "object",
-        required: ["_id", "name", "email", "rootDirId", "role", "isDeleted"],
+        required: [
+          "_id",
+          "name",
+          "email",
+          "rootDirId",
+          "role",
+          "isTrashed",
+          "isDeleted",
+        ],
         properties: {
           _id: {
             bsonType: "objectId",
@@ -30,11 +38,12 @@ try {
             pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+.[a-zA-Z]{2,}$",
           },
           maxStorageInBytes: {
-            bsonType: "long",
+            bsonType: ["int", "long", "double", "decimal"],
+            minimum: 0,
           },
           password: {
             bsonType: "string",
-            minLength: 4,
+            minLength: 6,
           },
           authProviders: {
             bsonType: "array",
@@ -51,15 +60,19 @@ try {
           },
           role: {
             bsonType: "string",
+            enum: ["user", "manager", "admin", "owner"],
+          },
+          isTrashed: {
+            bsonType: "bool",
           },
           isDeleted: {
             bsonType: "bool",
           },
           createdAt: {
-            bsonType: "date",
+            bsonType: ["date", "null"],
           },
           updatedAt: {
-            bsonType: "date",
+            bsonType: ["date", "null"],
           },
           __v: {
             bsonType: "int",
@@ -94,7 +107,8 @@ try {
             bsonType: "string",
           },
           size: {
-            bsonType: "int",
+            bsonType: ["int", "long", "double", "decimal"],
+            minimum: 0,
           },
           parentDirId: {
             bsonType: ["objectId", "null"],
@@ -158,7 +172,8 @@ try {
             bsonType: "string",
           },
           size: {
-            bsonType: "int",
+            bsonType: ["int", "long", "double", "decimal"],
+            minimum: 0,
           },
           userId: {
             bsonType: "objectId",

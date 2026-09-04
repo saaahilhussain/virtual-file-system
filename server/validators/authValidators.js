@@ -10,13 +10,18 @@ export const registerSchema = loginSchema.extend({
     .string()
     .min(3, "Name must be at least 3 characters long")
     .max(50, "Name can be at max 50 characters"),
+  registrationToken: z.string().uuid("Email verification is required"),
 });
 
 export const passwordUpdateSchema = z
   .object({
     currentPassword: z.string().min(6).optional().or(z.literal("")),
-    newPassword: z.string().min(6, "Password must be at least 6 characters long"),
-    confirmPassword: z.string().min(6, "Password must be at least 6 characters long"),
+    newPassword: z
+      .string()
+      .min(6, "Password must be at least 6 characters long"),
+    confirmPassword: z
+      .string()
+      .min(6, "Password must be at least 6 characters long"),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
     message: "Passwords do not match.",
@@ -36,8 +41,12 @@ export const passwordResetCompleteSchema = z
   .object({
     email: z.email("Invalid email address"),
     resetToken: z.string().uuid("Invalid reset session"),
-    newPassword: z.string().min(6, "Password must be at least 6 characters long"),
-    confirmPassword: z.string().min(6, "Password must be at least 6 characters long"),
+    newPassword: z
+      .string()
+      .min(6, "Password must be at least 6 characters long"),
+    confirmPassword: z
+      .string()
+      .min(6, "Password must be at least 6 characters long"),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
     message: "Passwords do not match.",

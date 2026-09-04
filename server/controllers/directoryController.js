@@ -7,6 +7,12 @@ import { deleteS3Files } from "../services/s3Service.js";
 const DEFAULT_PAGE_SIZE = 100;
 const MAX_PAGE_SIZE = 100;
 
+function rejectRootMutation(req, res) {
+  if (String(req.params.id) !== String(req.user.rootDirId)) return false;
+  res.status(400).json({ error: "The root directory cannot be modified." });
+  return true;
+}
+
 function decodeCursor(cursor) {
   if (!cursor) return null;
 
@@ -79,10 +85,7 @@ async function collectDirectorySubtree(rootId, userId) {
     directoryIds.push(currentId);
 
     const [childDirectories, childFiles] = await Promise.all([
-      Directory.find(
-        { parentDirId: currentId, userId },
-        { _id: 1 },
-      ).lean(),
+      Directory.find({ parentDirId: currentId, userId }, { _id: 1 }).lean(),
       File.find(
         { parentDirId: currentId, userId },
         { _id: 1, extension: 1 },
@@ -265,6 +268,8 @@ export const renameDirectory = async (req, res, next) => {
   const { id } = req.params;
   const { newDirName } = req.body;
 
+  if (rejectRootMutation(req, res)) return;
+
   try {
     await Directory.findOneAndUpdate(
       {
@@ -285,6 +290,8 @@ export const trashDirectory = async (req, res, next) => {
   const { id } = req.params;
   const user = req.user;
 
+  if (rejectRootMutation(req, res)) return;
+
   try {
     const directoryData = await Directory.findOne(
       {
@@ -302,7 +309,10 @@ export const trashDirectory = async (req, res, next) => {
       return res.json({ message: "Directory moved to trash" });
     }
 
-    const { directoryIds, fileIds } = await collectDirectorySubtree(id, user._id);
+    const { directoryIds, fileIds } = await collectDirectorySubtree(
+      id,
+      user._id,
+    );
     const trashedAt = new Date();
 
     if (fileIds.length > 0) {
@@ -332,6 +342,8 @@ export const restoreDirectory = async (req, res, next) => {
   const { id } = req.params;
   const user = req.user;
 
+  if (rejectRootMutation(req, res)) return;
+
   try {
     const directoryData = await Directory.findOne(
       {
@@ -349,7 +361,10 @@ export const restoreDirectory = async (req, res, next) => {
       return res.json({ message: "Directory restored" });
     }
 
-    const { directoryIds, fileIds } = await collectDirectorySubtree(id, user._id);
+    const { directoryIds, fileIds } = await collectDirectorySubtree(
+      id,
+      user._id,
+    );
 
     if (fileIds.length > 0) {
       await File.updateMany(
@@ -377,6 +392,8 @@ export const restoreDirectory = async (req, res, next) => {
 export const permanentlyDeleteDirectory = async (req, res, next) => {
   const { id } = req.params;
   const user = req.user;
+
+  if (rejectRootMutation(req, res)) return;
 
   try {
     const directoryData = await Directory.findOne(

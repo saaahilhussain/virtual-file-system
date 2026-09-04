@@ -44,6 +44,6 @@ router.put("/password", checkAuth, updatePassword);
 
 router.post("/logout", logoutUser);
 
-router.post("/logout-all", logoutAll);
+router.post("/logout-all", checkAuth, logoutAll);
 
 export default router;

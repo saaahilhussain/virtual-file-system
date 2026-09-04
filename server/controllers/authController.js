@@ -5,7 +5,10 @@ import { verifyIdToken } from "../services/googleAuthService.js";
 import { verifyGithubCode } from "../services/githubAuthService.js";
 import { sendOtpService, verifyOtpService } from "../services/otpService.js";
 import redisClient from "../config/redis.js";
-import { createSession, getUserSessionKeys } from "../services/sessionService.js";
+import {
+  createSession,
+  getUserSessionKeys,
+} from "../services/sessionService.js";
 import { z } from "zod";
 import crypto from "crypto";
 import {
@@ -13,6 +16,7 @@ import {
   passwordResetCompleteSchema,
   passwordResetRequestSchema,
 } from "../validators/authValidators.js";
+import { createEmailGrant } from "../services/verificationGrantService.js";
 
 const isProd = process.env.NODE_ENV === "production";
 const SOCIAL_PROVIDERS = new Set(["google", "github"]);
@@ -78,19 +82,27 @@ export const sendOtp = async (req, res, next) => {
   }
 };
 
-export const verifyOtp = async (req, res) => {
+export const verifyOtp = async (req, res, next) => {
   const { success, data, error } = otpSchema.safeParse(req.body);
   if (!success) {
     return res.status(400).json({ error: z.flattenError(error).fieldErrors });
   }
   const { email, otp } = data;
 
-  const verified = await verifyOtpService(email, otp, "registration");
-  if (!verified) {
-    return res.status(400).json({ error: "OTP is Invalid or Expired." });
-  }
+  try {
+    const verified = await verifyOtpService(email, otp, "registration");
+    if (!verified) {
+      return res.status(400).json({ error: "OTP is Invalid or Expired." });
+    }
 
-  return res.status(200).json({ message: "OTP verified successfully" });
+    const registrationToken = await createEmailGrant("registration", email);
+    return res.status(200).json({
+      message: "OTP verified successfully",
+      registrationToken,
+    });
+  } catch (err) {
+    return next(err);
+  }
 };
 
 export const requestPasswordReset = async (req, res, next) => {
@@ -161,12 +173,16 @@ export const completePasswordReset = async (req, res, next) => {
       resetGrantKey(data.resetToken),
     ]);
     if (grantEmail !== data.email) {
-      return res.status(400).json({ error: "Reset session is invalid or expired." });
+      return res
+        .status(400)
+        .json({ error: "Reset session is invalid or expired." });
     }
 
     const user = await User.findOne({ email: data.email });
     if (!user || user.isDeleted) {
-      return res.status(400).json({ error: "Reset session is invalid or expired." });
+      return res
+        .status(400)
+        .json({ error: "Reset session is invalid or expired." });
     }
 
     user.password = data.newPassword;
@@ -178,7 +194,8 @@ export const completePasswordReset = async (req, res, next) => {
     await invalidateUserSessions(user.id);
     res.clearCookie("sid");
     return res.status(200).json({
-      message: "Password reset successfully. Please sign in with your new password.",
+      message:
+        "Password reset successfully. Please sign in with your new password.",
     });
   } catch (err) {
     next(err);
@@ -279,9 +296,9 @@ export const loginWithGithub = async (req, res, next) => {
     if (user) {
       const shouldSaveUser =
         ensureAuthProvider(user, "github") ||
-        !user.picture.includes("githubusercontent.com") &&
+        (!user.picture.includes("githubusercontent.com") &&
           !user.picture.includes("googleusercontent.com") &&
-          user.picture !== picture;
+          user.picture !== picture);
 
       if (!user.picture.includes("githubusercontent.com")) {
         user.picture = picture;

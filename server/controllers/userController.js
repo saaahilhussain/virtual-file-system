@@ -8,7 +8,11 @@ import {
   passwordUpdateSchema,
 } from "../validators/authValidators.js";
 import { z } from "zod";
-import { createSession, getUserSessionKeys } from "../services/sessionService.js";
+import {
+  createSession,
+  getUserSessionKeys,
+} from "../services/sessionService.js";
+import { consumeEmailGrant } from "../services/verificationGrantService.js";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -39,20 +43,32 @@ export const registerUser = async (req, res, next) => {
   if (!success) {
     return res.status(400).json({ error: z.flattenError(error).fieldErrors });
   }
-  const { name, email, password } = data;
-
-  const foundUser = await User.findOne({ email });
-  if (foundUser) {
-    return res.status(409).json({
-      error: "User already exists",
-      message:
-        "A user with this email address already exists. Please try logging in or use a different email.",
-    });
-  }
-
-  const session = await mongoose.startSession();
+  const { name, email, password, registrationToken } = data;
+  let session;
 
   try {
+    const isEmailVerified = await consumeEmailGrant(
+      "registration",
+      registrationToken,
+      email,
+    );
+    if (!isEmailVerified) {
+      return res.status(400).json({
+        error: "Email verification is invalid or expired. Please verify again.",
+      });
+    }
+
+    const foundUser = await User.findOne({ email });
+    if (foundUser) {
+      return res.status(409).json({
+        error: "User already exists",
+        message:
+          "A user with this email address already exists. Please try logging in or use a different email.",
+      });
+    }
+
+    session = await mongoose.startSession();
+
     const rootDirId = new Types.ObjectId();
     const userId = new Types.ObjectId();
 
@@ -87,16 +103,29 @@ export const registerUser = async (req, res, next) => {
     );
 
     await session.commitTransaction();
-    return res.status(201).json({ message: "User Registered" });
+    await createSession({
+      res,
+      req,
+      user: {
+        _id: userId,
+        id: userId.toString(),
+        rootDirId,
+        role: "user",
+      },
+      sessionExpiry: 60 * 60 * 24 * 1000,
+      isProd,
+    });
+    return res.status(201).json({ message: "User registered and logged in" });
   } catch (err) {
-    await session.abortTransaction();
+    if (session?.inTransaction()) await session.abortTransaction();
     if (err.code === 121) {
-      res
+      return res
         .status(400)
         .json({ error: "Invalid input, please enter valid details" });
-    } else {
-      next(err);
     }
+    return next(err);
+  } finally {
+    await session?.endSession();
   }
 };
 
@@ -134,7 +163,9 @@ export const loginUser = async (req, res, next) => {
 export const getUser = async (req, res) => {
   const [user, rootDirectory] = await Promise.all([
     User.findById(req.user._id)
-      .select("name email picture authProviders password maxStorageInBytes role")
+      .select(
+        "name email picture authProviders password maxStorageInBytes role",
+      )
       .lean(),
     Directory.findOne(
       { _id: req.user.rootDirId, userId: req.user._id },
@@ -173,11 +204,9 @@ export const updatePassword = async (req, res) => {
 
   if (user.password) {
     if (!currentPassword) {
-      return res
-        .status(400)
-        .json({
-          error: "Current password is required to change your password.",
-        });
+      return res.status(400).json({
+        error: "Current password is required to change your password.",
+      });
     }
 
     const isCurrentPasswordValid = await user.comparePassword(currentPassword);
@@ -249,7 +278,9 @@ export const revokeSession = async (req, res, next) => {
     const { sessionId } = req.params;
     const { sid } = req.signedCookies;
     if (sessionId === sid) {
-      return res.status(400).json({ error: "Use logout to sign out of this device." });
+      return res
+        .status(400)
+        .json({ error: "Use logout to sign out of this device." });
     }
 
     const sessionKey = `session:${sessionId}`;

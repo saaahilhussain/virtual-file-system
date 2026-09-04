@@ -1,7 +1,10 @@
 import { razorPayInstance } from "../services/razorpayService.js";
 import Subscription from "../models/subscriptionModel.js";
+import { isKnownPlan } from "../config/plans.js";
 
-const ACTIVE_STATUSES = { $nin: ["canceled", "complete"] };
+const ACTIVE_STATUSES = {
+  $nin: ["cancelled", "completed", "expired", "canceled", "complete"],
+};
 
 const findActiveSubscription = (userId) =>
   Subscription.findOne({ userId, status: ACTIVE_STATUSES }).sort({
@@ -65,8 +68,8 @@ export const getSubscriptionBillingDetails = async (req, res, next) => {
 export const createSubscription = async (req, res, next) => {
   const { planId } = req.body;
 
-  if (!planId) {
-    return res.status(400).json({ error: "planId is required" });
+  if (!isKnownPlan(planId)) {
+    return res.status(400).json({ error: "A valid planId is required" });
   }
 
   if (!req.user?._id) {
@@ -74,6 +77,13 @@ export const createSubscription = async (req, res, next) => {
   }
 
   try {
+    const existingSubscription = await findActiveSubscription(req.user._id);
+    if (existingSubscription) {
+      return res.status(409).json({
+        error: "An active subscription already exists for this account",
+      });
+    }
+
     const rzpSubscription = await razorPayInstance.subscriptions.create({
       plan_id: planId,
       total_count: 60,
@@ -99,8 +109,8 @@ export const createSubscription = async (req, res, next) => {
 export const upgradeSubscription = async (req, res, next) => {
   const { planId } = req.body;
 
-  if (!planId) {
-    return res.status(400).json({ error: "planId is required" });
+  if (!isKnownPlan(planId)) {
+    return res.status(400).json({ error: "A valid planId is required" });
   }
 
   if (!req.user?._id) {
@@ -114,9 +124,7 @@ export const upgradeSubscription = async (req, res, next) => {
     }
 
     if (subscription.planId === planId) {
-      return res
-        .status(400)
-        .json({ error: "Already subscribed to this plan" });
+      return res.status(400).json({ error: "Already subscribed to this plan" });
     }
 
     await razorPayInstance.subscriptions.update(
@@ -127,17 +135,17 @@ export const upgradeSubscription = async (req, res, next) => {
       },
     );
 
-    subscription.planId = planId;
-    await subscription.save();
-
-    res.json({ subscription });
+    res.json({ subscription, scheduledPlanId: planId });
   } catch (error) {
     const description = error?.error?.description?.toLowerCase() ?? "";
     const isPaymentModeUpi = description.includes("payment mode is upi");
     const isStateNotUpdatable = description.includes(
       "not in authenticated or active state",
     );
-    if (error?.statusCode === 400 && (isPaymentModeUpi || isStateNotUpdatable)) {
+    if (
+      error?.statusCode === 400 &&
+      (isPaymentModeUpi || isStateNotUpdatable)
+    ) {
       return res.status(409).json({
         error:
           "Your current subscription can't be switched in place. Please cancel your current plan and choose the new tier — you'll keep access until your current cycle ends.",

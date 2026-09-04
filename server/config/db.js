@@ -10,8 +10,3 @@ export async function connectDB() {
     process.exit(1);
   }
 }
-
-process.on("SIGINT", async () => {
-  await mongoose.connection.close(); // Fixed: use mongoose.connection instead of undefined client
-  process.exit(0);
-});

@@ -4,6 +4,8 @@ export const ROLES = {
     "user:soft_delete",
     "user:restore",
     "user:permanent_delete",
+    "user:update",
+    "user:logout",
     "role:assign",
     "file:view:any",
     "file:update:any",
@@ -15,14 +17,15 @@ export const ROLES = {
   admin: [
     "user:view",
     "user:soft_delete",
-    "role:assign",
+    "user:restore",
+    "user:update",
+    "user:logout",
     "file:view:any",
     "role:assign:limited",
   ],
 
   manager: [
     "user:view",
-    "role:assign:basic",
     "user:logout",
     // "file:view:any",
     // "file:create:any",

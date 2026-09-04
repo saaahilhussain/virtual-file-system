@@ -2,30 +2,36 @@ import { ROLES } from "../config/roles.js";
 import redisClient from "../config/redis.js";
 
 export default async function checkAuth(req, res, next) {
-  const { sid } = req.signedCookies;
-  if (!sid) {
-    return res.status(401).json({ error: "Not logged!" });
-  }
-  // const session = await Session.findById(sid);
-  const redisKey = `session:${sid}`;
-  const session = await redisClient.json.get(redisKey);
+  try {
+    const { sid } = req.signedCookies;
+    if (!sid) {
+      return res.status(401).json({ error: "Not logged!" });
+    }
 
-  if (!session) {
-    res.clearCookie("sid");
-    return res.status(401).json({ error: "Not logged!" });
-  }
+    const redisKey = `session:${sid}`;
+    const session = await redisClient.json.get(redisKey);
 
-  req.user = {
-    _id: session.userId,
-    rootDirId: session.rootDirId,
-    role: String(session.role || "user").toLowerCase(),
-  };
-  req.sessionId = sid;
-  // Activity tracking should never add a network round trip to every API request.
-  redisClient.json
-    .set(redisKey, "$.lastActiveAt", new Date().toISOString())
-    .catch((error) => console.error("Unable to update session activity", error));
-  next();
+    if (!session) {
+      res.clearCookie("sid");
+      return res.status(401).json({ error: "Not logged!" });
+    }
+
+    req.user = {
+      _id: session.userId,
+      rootDirId: session.rootDirId,
+      role: String(session.role || "user").toLowerCase(),
+    };
+    req.sessionId = sid;
+    // Activity tracking should never add a network round trip to every API request.
+    redisClient.json
+      .set(redisKey, "$.lastActiveAt", new Date().toISOString())
+      .catch((error) =>
+        console.error("Unable to update session activity", error),
+      );
+    return next();
+  } catch (err) {
+    return next(err);
+  }
 }
 
 export function checkIsNotUser(req, res, next) {
@@ -57,7 +63,9 @@ export async function optionalAuth(req, res, next) {
     req.sessionId = sid;
     redisClient.json
       .set(redisKey, "$.lastActiveAt", new Date().toISOString())
-      .catch((error) => console.error("Unable to update session activity", error));
+      .catch((error) =>
+        console.error("Unable to update session activity", error),
+      );
     return next();
   } catch (err) {
     return next(err);
@@ -87,5 +95,30 @@ export const requirePermissionMiddleware = (requiredPermission) => {
     }
 
     next();
+  };
+};
+
+export const requireAnyPermissionMiddleware = (...requiredPermissions) => {
+  return (req, res, next) => {
+    if (!req.user?.role) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const rolePermissions = ROLES[String(req.user.role).toLowerCase()];
+    if (!rolePermissions) {
+      return res.status(403).json({ error: "Invalid role" });
+    }
+
+    if (
+      !requiredPermissions.some((permission) =>
+        rolePermissions.includes(permission),
+      )
+    ) {
+      return res.status(403).json({
+        error: "Forbidden: insufficient permissions",
+      });
+    }
+
+    return next();
   };
 };

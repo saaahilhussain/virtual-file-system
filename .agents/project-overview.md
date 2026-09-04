@@ -37,4 +37,8 @@ All file/dir/user schemas use `{ strict: "throw" }`; production also has DB-leve
 
 ## Roadmap status
 
-See `FILE_SHELTER_ROADMAP.md`. Phase order: 1 correctness → 2 hardening → 3 tests → 4 sharing feature → 5 observability → 6 service-layer refactor. Nothing from Phase 1–3 is done yet.
+See `FILE_SHELTER_ROADMAP.md`. Authentication, administrative authorization,
+Razorpay webhook parsing/status correctness, plan allowlisting, and root-folder
+protection have been hardened. Sharing is implemented. The backend now has 17
+passing HTTP integration tests and deployment is test-gated. Storage concurrency,
+compensating cleanup, quota reconciliation, and observability remain.

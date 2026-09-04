@@ -1,4 +1,5 @@
 import express from "express";
+import { pathToFileURL } from "url";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import directoryRoutes from "./routes/directoryRoutes.js";
@@ -11,18 +12,12 @@ import usersRoutes from "./routes/usersRoutes.js";
 import shareRoutes from "./routes/shareRoutes.js";
 import publicShareRoutes from "./routes/publicShareRoutes.js";
 import checkAuth, { checkIsNotUser } from "./middlewares/authMiddleware.js";
-import { connectDB } from "./config/db.js";
 import { webhookController } from "./controllers/webhookController.js";
 
-await connectDB();
 const app = express();
 
 app.get("/", (req, res) => {
   return res.json({ message: "OK" });
-});
-
-app.get("/err", (req, res) => {
-  process.exit(1);
 });
 
 const allowedOrigins = [
@@ -34,6 +29,15 @@ const allowedOrigins = [
 ];
 
 app.use(cookieParser(process.env.SESSION_SECRET));
+
+// Razorpay signs the exact request bytes, so this route must be registered
+// before the global JSON parser.
+app.post(
+  "/api/billing/webhook",
+  express.raw({ type: "application/json" }),
+  webhookController,
+);
+
 app.use(express.json());
 app.use(
   cors({
@@ -55,9 +59,6 @@ app.use("/user", userRoutes);
 app.use("/auth", authRoutes);
 app.use("/public/share", publicShareRoutes);
 
-// WEBHOOK//
-app.post("/api/billing/webhook", webhookController);
-
 // global error handler
 app.use((err, req, res, next) => {
   console.log(err);
@@ -65,6 +66,16 @@ app.use((err, req, res, next) => {
   return res.status(err.status || 500).json({ error: "Something went wrong." });
 });
 
-app.listen(process.env.PORT, () => {
-  console.log(`Server Started`);
-});
+export default app;
+
+// Keep the historical `node app.js`/PM2 entrypoint working while allowing
+// tests to import the Express app without opening network connections.
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
+  import("./server.js").catch((error) => {
+    console.error("Unable to load server entrypoint", error);
+    process.exitCode = 1;
+  });
+}

@@ -27,6 +27,7 @@ const Register = () => {
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
+  const [registrationToken, setRegistrationToken] = useState("");
   const [otpError, setOtpError] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -43,6 +44,7 @@ const Register = () => {
       setEmailError("");
       setOtpSent(false);
       setOtpVerified(false);
+      setRegistrationToken("");
       setCountdown(0);
     }
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -100,7 +102,8 @@ const Register = () => {
 
     try {
       setIsVerifying(true);
-      await verifyOtp(email, otp);
+      const response = await verifyOtp(email, otp);
+      setRegistrationToken(response.registrationToken);
       setOtpVerified(true);
       setOtpError("");
       setCountdown(0);
@@ -124,7 +127,7 @@ const Register = () => {
     }
 
     try {
-      await registerUser(formData);
+      await registerUser({ ...formData, registrationToken });
       setIsSuccess(true);
       setTimeout(() => navigate("/app"), 2000);
     } catch (error) {
