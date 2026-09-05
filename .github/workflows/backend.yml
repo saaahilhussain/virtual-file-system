@@ -44,6 +44,10 @@ jobs:
       REMOTE_REPO_DIR: ${{ secrets.REMOTE_REPO_DIR }}
       BACKEND_DIR: ${{ secrets.BACKEND_DIR }}
       PM2_APP_NAME: ${{ secrets.PM2_APP_NAME }}
+      RZP_PLAN_PRO_MONTHLY: ${{ secrets.RZP_PLAN_PRO_MONTHLY }}
+      RZP_PLAN_PRO_YEARLY: ${{ secrets.RZP_PLAN_PRO_YEARLY }}
+      RZP_PLAN_PREMIUM_MONTHLY: ${{ secrets.RZP_PLAN_PREMIUM_MONTHLY }}
+      RZP_PLAN_PREMIUM_YEARLY: ${{ secrets.RZP_PLAN_PREMIUM_YEARLY }}
 
     steps:
       - name: Setup SSH
@@ -76,11 +80,16 @@ jobs:
             echo "Moving to backend..."
             cd "$BACKEND_DIR"
 
+            export RZP_PLAN_PRO_MONTHLY="$RZP_PLAN_PRO_MONTHLY"
+            export RZP_PLAN_PRO_YEARLY="$RZP_PLAN_PRO_YEARLY"
+            export RZP_PLAN_PREMIUM_MONTHLY="$RZP_PLAN_PREMIUM_MONTHLY"
+            export RZP_PLAN_PREMIUM_YEARLY="$RZP_PLAN_PREMIUM_YEARLY"
+
             echo "Installing dependencies..."
             npm ci --no-audit --no-fund
 
             echo "Restarting PM2..."
-            pm2 restart "$PM2_APP_NAME"
+            pm2 restart "$PM2_APP_NAME" --update-env
 
             echo "Backend deployed successfully."
           EOF
