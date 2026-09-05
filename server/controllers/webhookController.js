@@ -1,103 +1,80 @@
+import crypto from "crypto";
 import Razorpay from "razorpay";
-import Subscription from "../models/subscriptionModel.js";
-import User from "../models/userModel.js";
-import { FREE_QUOTA_BYTES, getQuotaForPlan } from "../config/plans.js";
+import { syncSubscription, billingError } from "../services/billingService.js";
 
-const findSubscription = (rzpId) =>
-  Subscription.findOne({ razorpaySubscriptionId: rzpId });
-
-const setUserQuota = async (userId, bytes) => {
-  const user = await User.findById(userId);
-  if (!user) return;
-  user.maxStorageInBytes = bytes;
-  await user.save();
-};
+const EVENTS = new Set([
+  "subscription.created",
+  "subscription.authenticated",
+  "subscription.activated",
+  "subscription.charged",
+  "subscription.updated",
+  "subscription.pending",
+  "subscription.halted",
+  "subscription.paused",
+  "subscription.resumed",
+  "subscription.cancelled",
+  "subscription.completed",
+  "subscription.expired",
+]);
 
 export const webhookController = async (req, res, next) => {
   try {
     const signature = req.headers["x-razorpay-signature"];
-    if (!signature || !Buffer.isBuffer(req.body)) {
-      return res.status(400).json({ error: "Invalid webhook request" });
+    if (typeof signature !== "string" || !Buffer.isBuffer(req.body)) {
+      throw billingError(400, "Invalid webhook request");
     }
-
     const rawBody = req.body.toString("utf8");
-    const isSignatureValid = Razorpay.validateWebhookSignature(
-      rawBody,
-      signature,
-      process.env.WEBHOOK_SECRET,
-    );
+    if (
+      !Razorpay.validateWebhookSignature(
+        rawBody,
+        signature,
+        process.env.WEBHOOK_SECRET,
+      )
+    ) {
+      throw billingError(400, "Invalid Signature");
+    }
+    let payload;
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      throw billingError(400, "Malformed webhook JSON");
+    }
+    if (!payload || typeof payload.event !== "string")
+      throw billingError(400, "Invalid webhook event");
+    if (!EVENTS.has(payload.event))
+      return res.json({ received: true, ignored: true });
 
-    if (!isSignatureValid) {
-      return res.status(400).json({ error: "Invalid Signature" });
+    const eventId = req.headers["x-razorpay-event-id"];
+    const subscriptionId = payload.payload?.subscription?.entity?.id;
+    if (
+      typeof eventId !== "string" ||
+      !eventId.trim() ||
+      eventId.length > 200 ||
+      typeof subscriptionId !== "string" ||
+      !subscriptionId.startsWith("sub_") ||
+      subscriptionId.length > 200 ||
+      !Number.isSafeInteger(payload.created_at) ||
+      payload.created_at <= 0
+    ) {
+      throw billingError(
+        400,
+        "Missing or invalid webhook event ID, subscription ID or timestamp",
+      );
     }
 
-    const payload = JSON.parse(rawBody);
-    const event = payload.event;
-    const rzpSubscription = payload.payload?.subscription?.entity;
-
-    if (!rzpSubscription) {
-      return res.json({ received: true });
-    }
-
-    const subscription = await findSubscription(rzpSubscription.id);
-    if (!subscription) {
-      return res.json({ received: true });
-    }
-
-    switch (event) {
-      case "subscription.charged": {
-        subscription.status = rzpSubscription.status;
-        subscription.planId = rzpSubscription.plan_id;
-        await subscription.save();
-        await setUserQuota(
-          subscription.userId,
-          getQuotaForPlan(rzpSubscription.plan_id),
-        );
-        break;
-      }
-
-      case "subscription.updated": {
-        subscription.status = rzpSubscription.status;
-        subscription.planId = rzpSubscription.plan_id;
-        await subscription.save();
-        await setUserQuota(
-          subscription.userId,
-          getQuotaForPlan(rzpSubscription.plan_id),
-        );
-        break;
-      }
-
-      case "subscription.cancelled":
-      case "subscription.completed": {
-        subscription.status = rzpSubscription.status;
-        await subscription.save();
-        await setUserQuota(subscription.userId, FREE_QUOTA_BYTES);
-        break;
-      }
-
-      case "subscription.paused":
-      case "subscription.resumed":
-      case "subscription.halted":
-      case "subscription.pending":
-      case "subscription.authenticated": {
-        subscription.status = rzpSubscription.status;
-        await subscription.save();
-        break;
-      }
-
-      case "subscription.expired": {
-        subscription.status = rzpSubscription.status;
-        await subscription.save();
-        await setUserQuota(subscription.userId, FREE_QUOTA_BYTES);
-        break;
-      }
-
-      default:
-        break;
-    }
-
-    return res.json({ received: true });
+    const result = await syncSubscription(subscriptionId, {
+      _id: eventId,
+      payloadHash: crypto.createHash("sha256").update(req.body).digest("hex"),
+      eventType: payload.event,
+      razorpaySubscriptionId: subscriptionId,
+      eventCreatedAt: payload.created_at,
+    });
+    return res.json({ received: true, duplicate: result.duplicate });
   } catch (error) {
-    next(error);
+    if (error.status) {
+      if (error.status === 503) res.set("Retry-After", "30");
+      return res.status(error.status).json({ error: error.message });
+    }
+    return next(error);
   }
 };

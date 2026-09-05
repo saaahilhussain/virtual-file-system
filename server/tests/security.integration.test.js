@@ -14,6 +14,8 @@ import { MongoMemoryReplSet } from "mongodb-memory-server";
 import Directory from "../models/directoryModel.js";
 import Otp from "../models/otpModel.js";
 import Subscription from "../models/subscriptionModel.js";
+import BillingEvent from "../models/billingEventModel.js";
+import { razorPayInstance } from "../services/razorpayService.js";
 import User from "../models/userModel.js";
 import { FREE_QUOTA_BYTES } from "../config/plans.js";
 import { redisMock } from "./helpers/redisMock.js";
@@ -73,6 +75,7 @@ beforeAll(async () => {
     replSet: { count: 1, storageEngine: "wiredTiger" },
   });
   await mongoose.connect(replicaSet.getUri());
+  await BillingEvent.init();
   ({ default: app } = await import("../app.js"));
 });
 
@@ -240,6 +243,7 @@ describe("protected system invariants", () => {
     });
     const rawBody = JSON.stringify({
       event: "subscription.cancelled",
+      created_at: 1720000000,
       payload: {
         subscription: {
           entity: {
@@ -255,10 +259,18 @@ describe("protected system invariants", () => {
       .update(rawBody)
       .digest("hex");
 
+    vi.mocked(razorPayInstance.subscriptions.fetch).mockResolvedValue({
+      id: subscription.razorpaySubscriptionId,
+      plan_id: subscription.planId,
+      status: "cancelled",
+      paid_count: 1,
+    });
+
     const response = await request(app)
       .post("/api/billing/webhook")
       .set("Content-Type", "application/json")
       .set("X-Razorpay-Signature", signature)
+      .set("X-Razorpay-Event-Id", "evt_security_cancelled")
       .send(rawBody);
 
     expect(response.status).toBe(200);
@@ -273,6 +285,7 @@ describe("protected system invariants", () => {
       .post("/api/billing/webhook")
       .set("Content-Type", "application/json")
       .set("X-Razorpay-Signature", signature)
+      .set("X-Razorpay-Event-Id", "evt_security_cancelled")
       .send(rawBody);
     expect(duplicate.status).toBe(200);
     expect((await User.findById(account.user._id)).maxStorageInBytes).toBe(

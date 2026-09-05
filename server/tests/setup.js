@@ -33,3 +33,16 @@ vi.mock("../services/s3Service.js", () => ({
   deleteS3File: vi.fn(async () => ({})),
   deleteS3Files: vi.fn(async (keys) => ({ Deleted: keys })),
 }));
+
+vi.mock("../services/razorpayService.js", () => ({
+  razorPayInstance: {
+    subscriptions: {
+      fetch: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      pause: vi.fn(),
+      resume: vi.fn(),
+      cancel: vi.fn(),
+    },
+  },
+}));

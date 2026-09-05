@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import User from "../models/userModel.js";
 import File from "../models/fileModel.js";
 import Directory from "../models/directoryModel.js";
 import Share from "../models/shareModel.js";
@@ -11,28 +10,8 @@ export function storageError(status, message) {
   return Object.assign(new Error(message), { status });
 }
 
-// Every storage writer acquires the same per-account write conflict fence.
-// withTransaction retries conflicting transactions against a fresh snapshot.
-// Use the existing version field so deployed strict validators need no migration.
-export async function withStorageTransaction(userId, work) {
-  const session = await mongoose.startSession();
-  try {
-    return await session.withTransaction(
-      async () => {
-        const user = await User.findOneAndUpdate(
-          { _id: userId },
-          { $inc: { __v: 1 } },
-          { returnDocument: "after", session },
-        ).lean();
-        if (!user) throw storageError(404, "User not found");
-        return work({ session, user });
-      },
-      { readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } },
-    );
-  } finally {
-    await session.endSession();
-  }
-}
+// Keep the storage API while sharing the same account transaction with billing.
+export { withAccountTransaction as withStorageTransaction } from "./accountTransactionService.js";
 
 // Pending file rows ARE the reservations. Summing the source records avoids a
 // second mutable quota counter and includes legacy pending uploads immediately.

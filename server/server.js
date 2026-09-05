@@ -3,6 +3,7 @@ import app from "./app.js";
 import { connectDB } from "./config/db.js";
 import redisClient, { connectRedis } from "./config/redis.js";
 import StorageCleanup from "./models/storageCleanupModel.js";
+import BillingEvent from "./models/billingEventModel.js";
 import { startStorageMaintenance } from "./services/storageMaintenanceService.js";
 
 let server;
@@ -10,7 +11,7 @@ let stopStorageMaintenance;
 
 async function start() {
   await Promise.all([connectDB(), connectRedis()]);
-  await StorageCleanup.init();
+  await Promise.all([StorageCleanup.init(), BillingEvent.init()]);
   stopStorageMaintenance = startStorageMaintenance();
   server = app.listen(process.env.PORT, () => {
     console.log("Server Started");

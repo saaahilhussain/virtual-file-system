@@ -56,9 +56,17 @@ const subscriptionSchema = new Schema(
       ],
       default: "created",
     },
+    billingRevision: { type: Number, default: 0 },
+    // Retained after cancellation: an older subscription must never regain
+    // control of quota after a newer paid subscription ends.
+    hasEntitlement: { type: Boolean, default: false },
+    lastEventCreatedAt: { type: Number, default: 0 },
+    lastSyncedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );
+
+subscriptionSchema.index({ userId: 1, createdAt: -1, _id: -1 });
 
 const Subscription = model("Subscription", subscriptionSchema);
 

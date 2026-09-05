@@ -37,6 +37,11 @@ jobs:
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}   
           VITE_GITHUB_CLIENT_ID: ${{ secrets.VITE_GITHUB_CLIENT_ID }}
           VITE_GITHUB_REDIRECT_URI: ${{ secrets.VITE_GITHUB_REDIRECT_URI }}
+          VITE_RZP_KEY_ID: ${{ secrets.VITE_RZP_KEY_ID }}
+          VITE_RZP_PLAN_PRO_MONTHLY: ${{ secrets.VITE_RZP_PLAN_PRO_MONTHLY }}
+          VITE_RZP_PLAN_PRO_YEARLY: ${{ secrets.VITE_RZP_PLAN_PRO_YEARLY }}
+          VITE_RZP_PLAN_PREMIUM_MONTHLY: ${{ secrets.VITE_RZP_PLAN_PREMIUM_MONTHLY }}
+          VITE_RZP_PLAN_PREMIUM_YEARLY: ${{ secrets.VITE_RZP_PLAN_PREMIUM_YEARLY }}
           
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4

@@ -379,7 +379,7 @@ const PricingSection = ({ currentSubscription = null, onPlanSwitched }) => {
                   type="button"
                   onClick={() => handleBuyClick(plan)}
                   disabled={buttonDisabled}
-                  className="mt-6 w-full rounded-xl px-4 py-3 text-base md:text-lg font-semibold transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="mt-6 w-full cursor-pointer rounded-xl px-4 py-3 text-base md:text-lg font-semibold transition-all duration-150 enabled:hover:opacity-90 enabled:hover:shadow-lg motion-safe:enabled:hover:-translate-y-0.5 motion-safe:enabled:active:translate-y-0 motion-safe:enabled:active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent-black)] disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
                     backgroundColor: "var(--accent-black)",
                     color: "var(--bg-canvas)",

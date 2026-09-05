@@ -37,6 +37,11 @@ Redis test double. The client still has a stub `dummyTest.js`.
   writes through the existing user `__v` field in a MongoDB transaction. Pending
   non-trashed file rows reserve quota; completion and ancestor totals commit
   together. Restores also enforce quota. All new storage writers must use this helper.
+- **Billing consistency**: `services/billingService.js` fetches current Razorpay
+  state, fences stale fetches with `billingRevision`, and atomically commits
+  subscription/quota/event-ledger updates. Storage and billing share
+  `accountTransactionService.js`. `hasEntitlement` preserves replacement-plan
+  precedence after termination. See `server/docs/BILLING_RELIABILITY.md`.
 - **Cleanup**: metadata deletion queues S3 keys transactionally. The server's
   maintenance loop expires 24-hour pending uploads, retries leased cleanup jobs,
   and reconciles directory sizes. Successful cleanup tombstones are retained and
@@ -57,8 +62,9 @@ Redis test double. The client still has a stub `dummyTest.js`.
 1. Reliability: quota reservation, transactional accounting, abandoned-upload
    cleanup and durable S3 retries implemented. Next: scale large-account scans,
    review tombstone retention costs, and add a browser completion-retry flow.
-2. Hardening: extend Zod validation beyond auth/sharing; add webhook event
-   ordering/deduplication; make subscription+quota updates transaction-safe.
+2. Hardening: webhook deduplication, current-state synchronization and atomic
+   subscription/quota updates implemented. Remaining: validation coverage,
+   concurrent checkout creation and remote-checkout recovery, billing monitoring.
 3. Tests: backend integration and S3 service tests gate deployment;
    extend coverage as reliability work lands. Sharing is implemented.
 4. Observability → 5. Service-layer refactor → 6. README/OpenAPI polish.

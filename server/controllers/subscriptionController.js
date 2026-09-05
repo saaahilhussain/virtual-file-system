@@ -1,9 +1,13 @@
 import { razorPayInstance } from "../services/razorpayService.js";
 import Subscription from "../models/subscriptionModel.js";
 import { isKnownPlan } from "../config/plans.js";
+import {
+  syncSubscription,
+  TERMINAL_STATUSES,
+} from "../services/billingService.js";
 
 const ACTIVE_STATUSES = {
-  $nin: ["cancelled", "completed", "expired", "canceled", "complete"],
+  $nin: TERMINAL_STATUSES,
 };
 
 const findActiveSubscription = (userId) =>
@@ -167,15 +171,13 @@ export const pauseSubscription = async (req, res, next) => {
       return res.status(404).json({ error: "No active subscription found" });
     }
 
-    const rzpResp = await razorPayInstance.subscriptions.pause(
+    await razorPayInstance.subscriptions.pause(
       subscription.razorpaySubscriptionId,
       { pause_at: "now" },
     );
 
-    subscription.status = rzpResp.status;
-    await subscription.save();
-
-    res.json({ subscription });
+    const result = await syncSubscription(subscription.razorpaySubscriptionId);
+    res.json({ subscription: result.subscription });
   } catch (error) {
     next(error);
   }
@@ -192,15 +194,13 @@ export const resumeSubscription = async (req, res, next) => {
       return res.status(404).json({ error: "No active subscription found" });
     }
 
-    const rzpResp = await razorPayInstance.subscriptions.resume(
+    await razorPayInstance.subscriptions.resume(
       subscription.razorpaySubscriptionId,
       { resume_at: "now" },
     );
 
-    subscription.status = rzpResp.status;
-    await subscription.save();
-
-    res.json({ subscription });
+    const result = await syncSubscription(subscription.razorpaySubscriptionId);
+    res.json({ subscription: result.subscription });
   } catch (error) {
     next(error);
   }
@@ -219,15 +219,13 @@ export const cancelSubscription = async (req, res, next) => {
       return res.status(404).json({ error: "No active subscription found" });
     }
 
-    const rzpResp = await razorPayInstance.subscriptions.cancel(
+    await razorPayInstance.subscriptions.cancel(
       subscription.razorpaySubscriptionId,
       cancelAtCycleEnd,
     );
 
-    subscription.status = rzpResp.status;
-    await subscription.save();
-
-    res.json({ subscription });
+    const result = await syncSubscription(subscription.razorpaySubscriptionId);
+    res.json({ subscription: result.subscription });
   } catch (error) {
     next(error);
   }
