@@ -86,7 +86,7 @@ jobs:
             export RZP_PLAN_PREMIUM_YEARLY="$RZP_PLAN_PREMIUM_YEARLY"
 
             echo "Installing dependencies..."
-            npm ci --no-audit --no-fund
+            npm ci --omit=dev --no-audit --no-fund
 
             echo "Restarting PM2..."
             pm2 restart "$PM2_APP_NAME" --update-env
