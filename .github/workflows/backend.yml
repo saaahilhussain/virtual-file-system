@@ -44,12 +44,21 @@ jobs:
       REMOTE_REPO_DIR: ${{ secrets.REMOTE_REPO_DIR }}
       BACKEND_DIR: ${{ secrets.BACKEND_DIR }}
       PM2_APP_NAME: ${{ secrets.PM2_APP_NAME }}
-      RZP_PLAN_PRO_MONTHLY: ${{ secrets.RZP_PLAN_PRO_MONTHLY }}
-      RZP_PLAN_PRO_YEARLY: ${{ secrets.RZP_PLAN_PRO_YEARLY }}
-      RZP_PLAN_PREMIUM_MONTHLY: ${{ secrets.RZP_PLAN_PREMIUM_MONTHLY }}
-      RZP_PLAN_PREMIUM_YEARLY: ${{ secrets.RZP_PLAN_PREMIUM_YEARLY }}
+      # Use the existing frontend plan secrets as the single source of truth.
+      # They are exported under the server's RZP_* names over SSH below.
+      RZP_PLAN_PRO_MONTHLY: ${{ secrets.VITE_RZP_PLAN_PRO_MONTHLY }}
+      RZP_PLAN_PRO_YEARLY: ${{ secrets.VITE_RZP_PLAN_PRO_YEARLY }}
+      RZP_PLAN_PREMIUM_MONTHLY: ${{ secrets.VITE_RZP_PLAN_PREMIUM_MONTHLY }}
+      RZP_PLAN_PREMIUM_YEARLY: ${{ secrets.VITE_RZP_PLAN_PREMIUM_YEARLY }}
 
     steps:
+      - name: Validate Razorpay Plan Configuration
+        run: |
+          test -n "$RZP_PLAN_PRO_MONTHLY" || { echo "::error::Missing VITE_RZP_PLAN_PRO_MONTHLY secret"; exit 1; }
+          test -n "$RZP_PLAN_PRO_YEARLY" || { echo "::error::Missing VITE_RZP_PLAN_PRO_YEARLY secret"; exit 1; }
+          test -n "$RZP_PLAN_PREMIUM_MONTHLY" || { echo "::error::Missing VITE_RZP_PLAN_PREMIUM_MONTHLY secret"; exit 1; }
+          test -n "$RZP_PLAN_PREMIUM_YEARLY" || { echo "::error::Missing VITE_RZP_PLAN_PREMIUM_YEARLY secret"; exit 1; }
+
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh

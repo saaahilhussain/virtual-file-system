@@ -31,19 +31,23 @@ jobs:
         run: npm ci
 
       - name: Build Application
-        run: npm run build
+        run: |
+          test -n "$VITE_RZP_KEY_ID" || { echo "::error::Missing VITE_RZP_KEY_ID secret"; exit 1; }
+          test -n "$VITE_RZP_PLAN_PRO_MONTHLY" || { echo "::error::Missing VITE_RZP_PLAN_PRO_MONTHLY secret"; exit 1; }
+          test -n "$VITE_RZP_PLAN_PRO_YEARLY" || { echo "::error::Missing VITE_RZP_PLAN_PRO_YEARLY secret"; exit 1; }
+          test -n "$VITE_RZP_PLAN_PREMIUM_MONTHLY" || { echo "::error::Missing VITE_RZP_PLAN_PREMIUM_MONTHLY secret"; exit 1; }
+          test -n "$VITE_RZP_PLAN_PREMIUM_YEARLY" || { echo "::error::Missing VITE_RZP_PLAN_PREMIUM_YEARLY secret"; exit 1; }
+          npm run build
         env:
           VITE_BACKEND_BASE_URI: ${{ secrets.VITE_BACKEND_BASE_URI }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}   
           VITE_GITHUB_CLIENT_ID: ${{ secrets.VITE_GITHUB_CLIENT_ID }}
           VITE_GITHUB_REDIRECT_URI: ${{ secrets.VITE_GITHUB_REDIRECT_URI }}
           VITE_RZP_KEY_ID: ${{ secrets.VITE_RZP_KEY_ID }}
-          # Use the same source values as the backend. Vite exposes these to
-          # client code under the VITE_* names during this build.
-          VITE_RZP_PLAN_PRO_MONTHLY: ${{ secrets.RZP_PLAN_PRO_MONTHLY }}
-          VITE_RZP_PLAN_PRO_YEARLY: ${{ secrets.RZP_PLAN_PRO_YEARLY }}
-          VITE_RZP_PLAN_PREMIUM_MONTHLY: ${{ secrets.RZP_PLAN_PREMIUM_MONTHLY }}
-          VITE_RZP_PLAN_PREMIUM_YEARLY: ${{ secrets.RZP_PLAN_PREMIUM_YEARLY }}
+          VITE_RZP_PLAN_PRO_MONTHLY: ${{ secrets.VITE_RZP_PLAN_PRO_MONTHLY }}
+          VITE_RZP_PLAN_PRO_YEARLY: ${{ secrets.VITE_RZP_PLAN_PRO_YEARLY }}
+          VITE_RZP_PLAN_PREMIUM_MONTHLY: ${{ secrets.VITE_RZP_PLAN_PREMIUM_MONTHLY }}
+          VITE_RZP_PLAN_PREMIUM_YEARLY: ${{ secrets.VITE_RZP_PLAN_PREMIUM_YEARLY }}
           
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
