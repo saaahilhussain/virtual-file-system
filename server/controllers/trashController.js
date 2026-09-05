@@ -1,7 +1,12 @@
 import Directory from "../models/directoryModel.js";
 import File from "../models/fileModel.js";
 import Share from "../models/shareModel.js";
-import { deleteS3Files } from "../services/s3Service.js";
+import {
+  withStorageTransaction,
+  collectSubtree,
+  removeFiles,
+  reconcileSizes,
+} from "../services/storageService.js";
 
 export const getTrash = async (req, res, next) => {
   try {
@@ -33,34 +38,40 @@ export const getTrash = async (req, res, next) => {
 
 export const emptyTrash = async (req, res, next) => {
   try {
-    const userId = req.user._id;
-    const [trashedFiles, trashedDirs] = await Promise.all([
-      File.find({ userId, isTrashed: true }, { _id: 1, extension: 1 }).lean(),
-      Directory.find({ userId, isTrashed: true }, { _id: 1 }).lean(),
-    ]);
-
-    if (trashedFiles.length > 0) {
-      await deleteS3Files(
-        trashedFiles.map(({ _id, extension }) => ({
-          Key: `${_id.toString()}${extension}`,
-        })),
+    await withStorageTransaction(req.user._id, async ({ user, session }) => {
+      const trashedDirs = await Directory.find({
+        userId: user._id,
+        isTrashed: true,
+      })
+        .session(session)
+        .lean();
+      const ids = new Set();
+      for (const dir of trashedDirs) {
+        if (!ids.has(String(dir._id))) {
+          const subtree = await collectSubtree(dir._id, user._id, session);
+          for (const id of subtree) ids.add(String(id));
+        }
+      }
+      const directoryIds = [...ids];
+      const files = await File.find({
+        userId: user._id,
+        $or: [{ isTrashed: true }, { parentDirId: { $in: directoryIds } }],
+      }).session(session);
+      await removeFiles(files, user._id, session);
+      await Directory.deleteMany({
+        _id: { $in: directoryIds },
+        userId: user._id,
+      }).session(session);
+      await Share.deleteMany({ directoryId: { $in: directoryIds } }).session(
+        session,
       );
-    }
-
-    await File.deleteMany({ userId, isTrashed: true });
-    await Directory.deleteMany({ userId, isTrashed: true });
-
-    if (trashedFiles.length > 0 || trashedDirs.length > 0) {
-      await Share.deleteMany({
-        $or: [
-          { fileId: { $in: trashedFiles.map((f) => f._id) } },
-          { directoryId: { $in: trashedDirs.map((d) => d._id) } },
-        ],
-      });
-    }
-
-    return res.status(200).json({ message: "Trash emptied successfully" });
-  } catch (err) {
-    next(err);
+      await reconcileSizes(user._id, session);
+    });
+    return res.json({
+      message: "Trash emptied successfully",
+      cleanupPending: true,
+    });
+  } catch (error) {
+    next(error);
   }
 };

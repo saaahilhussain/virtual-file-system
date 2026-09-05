@@ -2,7 +2,15 @@ import { ObjectId } from "mongodb";
 import Directory from "../models/directoryModel.js";
 import File from "../models/fileModel.js";
 import Share from "../models/shareModel.js";
-import { deleteS3Files } from "../services/s3Service.js";
+import {
+  withStorageTransaction,
+  assertQuota,
+  liveAncestors,
+  collectSubtree,
+  removeFiles,
+  reconcileSizes,
+  storageError,
+} from "../services/storageService.js";
 
 const DEFAULT_PAGE_SIZE = 100;
 const MAX_PAGE_SIZE = 100;
@@ -37,20 +45,6 @@ function encodeCursor(item) {
   ).toString("base64url");
 }
 
-async function updateAncestorSizes(startParentId, delta) {
-  if (!startParentId || !Number.isFinite(delta) || delta === 0) return;
-
-  let parentId = startParentId;
-  while (parentId) {
-    const dir = await Directory.findById(parentId);
-    if (!dir) break;
-
-    dir.size = Math.max(0, (dir.size || 0) + delta);
-    await dir.save();
-    parentId = dir.parentDirId;
-  }
-}
-
 async function buildLegacyPathIds(directoryData, userId) {
   const pathIds = [];
   const visited = new Set();
@@ -72,37 +66,6 @@ async function buildLegacyPathIds(directoryData, userId) {
   }
 
   return pathIds;
-}
-
-async function collectDirectorySubtree(rootId, userId) {
-  const directoryIds = [];
-  const fileIds = [];
-  const fileKeys = [];
-  const queue = [new ObjectId(rootId)];
-
-  while (queue.length > 0) {
-    const currentId = queue.shift();
-    directoryIds.push(currentId);
-
-    const [childDirectories, childFiles] = await Promise.all([
-      Directory.find({ parentDirId: currentId, userId }, { _id: 1 }).lean(),
-      File.find(
-        { parentDirId: currentId, userId },
-        { _id: 1, extension: 1 },
-      ).lean(),
-    ]);
-
-    childDirectories.forEach(({ _id }) => {
-      queue.push(_id);
-    });
-
-    childFiles.forEach(({ _id, extension }) => {
-      fileIds.push(_id);
-      fileKeys.push({ Key: `${_id}${extension}` });
-    });
-  }
-
-  return { directoryIds, fileIds, fileKeys };
 }
 
 export const getDirectory = async (req, res) => {
@@ -227,39 +190,29 @@ export const getDirectory = async (req, res) => {
 };
 
 export const createDirectory = async (req, res, next) => {
-  const user = req.user;
-  const parentDirId = req.params.parentDirId || user.rootDirId.toString();
-  const dirname = req.headers.dirname || "New Folder";
-
   try {
-    const parentDir = await Directory.findOne({
-      _id: new ObjectId(parentDirId),
-      userId: user._id,
-    }).lean();
-
-    if (!parentDir) {
-      return res
-        .status(404)
-        .json({ message: "Parent Directory Does not exist!" });
-    }
-
-    const newDirId = new ObjectId();
-    const parentPath =
-      Array.isArray(parentDir.path) && parentDir.path.length > 0
-        ? parentDir.path
-        : [parentDir._id];
-
-    await Directory.insertOne({
-      _id: newDirId,
-      name: dirname,
-      parentDirId: new ObjectId(parentDirId),
-      path: [...parentPath, newDirId],
-      userId: user._id,
+    const parentDirId = req.params.parentDirId || req.user.rootDirId;
+    await withStorageTransaction(req.user._id, async ({ user, session }) => {
+      const ancestors = await liveAncestors(parentDirId, user._id, session);
+      const newDirId = new ObjectId();
+      await Directory.create(
+        [
+          {
+            _id: newDirId,
+            name: req.headers.dirname || "New Folder",
+            parentDirId,
+            path: [...ancestors.map((dir) => dir._id).reverse(), newDirId],
+            userId: user._id,
+          },
+        ],
+        { session },
+      );
     });
-
-    return res.status(200).json({ message: "Directory Created!" });
-  } catch (err) {
-    next(err);
+    return res.json({ message: "Directory Created!" });
+  } catch (error) {
+    if (error.status)
+      return res.status(error.status).json({ error: error.message });
+    next(error);
   }
 };
 
@@ -286,165 +239,69 @@ export const renameDirectory = async (req, res, next) => {
   }
 };
 
-export const trashDirectory = async (req, res, next) => {
-  const { id } = req.params;
-  const user = req.user;
-
+async function mutateDirectory(req, res, next, action) {
   if (rejectRootMutation(req, res)) return;
-
   try {
-    const directoryData = await Directory.findOne(
-      {
-        _id: new ObjectId(id),
+    await withStorageTransaction(req.user._id, async ({ user, session }) => {
+      const dir = await Directory.findOne({
+        _id: req.params.id,
         userId: user._id,
-      },
-      { _id: 1, parentDirId: 1, size: 1, isTrashed: 1 },
-    );
-
-    if (!directoryData) {
-      return res.status(404).json({ error: "Directory not found" });
-    }
-
-    if (directoryData.isTrashed) {
-      return res.json({ message: "Directory moved to trash" });
-    }
-
-    const { directoryIds, fileIds } = await collectDirectorySubtree(
-      id,
-      user._id,
-    );
-    const trashedAt = new Date();
-
-    if (fileIds.length > 0) {
-      await File.updateMany(
-        { _id: { $in: fileIds }, userId: user._id },
-        { $set: { isTrashed: true, trashedAt } },
-      );
-    }
-
-    await Directory.updateMany(
-      { _id: { $in: directoryIds }, userId: user._id },
-      { $set: { isTrashed: true, trashedAt } },
-    );
-
-    await updateAncestorSizes(
-      directoryData.parentDirId,
-      -(Number(directoryData.size) || 0),
-    );
-
-    return res.json({ message: "Directory moved to trash" });
-  } catch (err) {
-    next(err);
-  }
-};
-
-export const restoreDirectory = async (req, res, next) => {
-  const { id } = req.params;
-  const user = req.user;
-
-  if (rejectRootMutation(req, res)) return;
-
-  try {
-    const directoryData = await Directory.findOne(
-      {
-        _id: new ObjectId(id),
-        userId: user._id,
-      },
-      { _id: 1, parentDirId: 1, size: 1, isTrashed: 1 },
-    );
-
-    if (!directoryData) {
-      return res.status(404).json({ error: "Directory not found" });
-    }
-
-    if (!directoryData.isTrashed) {
-      return res.json({ message: "Directory restored" });
-    }
-
-    const { directoryIds, fileIds } = await collectDirectorySubtree(
-      id,
-      user._id,
-    );
-
-    if (fileIds.length > 0) {
-      await File.updateMany(
-        { _id: { $in: fileIds }, userId: user._id },
-        { $set: { isTrashed: false, trashedAt: null } },
-      );
-    }
-
-    await Directory.updateMany(
-      { _id: { $in: directoryIds }, userId: user._id },
-      { $set: { isTrashed: false, trashedAt: null } },
-    );
-
-    await updateAncestorSizes(
-      directoryData.parentDirId,
-      Number(directoryData.size) || 0,
-    );
-
-    return res.json({ message: "Directory restored" });
-  } catch (err) {
-    next(err);
-  }
-};
-
-export const permanentlyDeleteDirectory = async (req, res, next) => {
-  const { id } = req.params;
-  const user = req.user;
-
-  if (rejectRootMutation(req, res)) return;
-
-  try {
-    const directoryData = await Directory.findOne(
-      {
-        _id: new ObjectId(id),
-        userId: user._id,
-      },
-      { _id: 1, parentDirId: 1, size: 1, isTrashed: 1 },
-    );
-
-    if (!directoryData) {
-      return res.status(404).json({ error: "Directory not found" });
-    }
-
-    const { directoryIds, fileIds, fileKeys } = await collectDirectorySubtree(
-      id,
-      user._id,
-    );
-
-    if (!directoryData.isTrashed) {
-      await updateAncestorSizes(
-        directoryData.parentDirId,
-        -(Number(directoryData.size) || 0),
-      );
-    }
-
-    if (fileKeys.length > 0) {
-      await deleteS3Files(fileKeys);
-    }
-
-    if (fileIds.length > 0) {
-      await File.deleteMany({
-        _id: { $in: fileIds },
-        userId: user._id,
-      });
-    }
-
-    await Directory.deleteMany({
-      _id: { $in: directoryIds },
-      userId: user._id,
+      }).session(session);
+      if (!dir) throw storageError(404, "Directory not found");
+      const trash = action === "trash";
+      if (action !== "delete" && dir.isTrashed === trash) return;
+      if (action === "restore")
+        await liveAncestors(dir.parentDirId, user._id, session);
+      const directoryIds = await collectSubtree(dir._id, user._id, session);
+      if (action === "delete") {
+        const files = await File.find({
+          parentDirId: { $in: directoryIds },
+          userId: user._id,
+        }).session(session);
+        await removeFiles(files, user._id, session);
+        await Directory.deleteMany({
+          _id: { $in: directoryIds },
+          userId: user._id,
+        }).session(session);
+        await Share.deleteMany({ directoryId: { $in: directoryIds } }).session(
+          session,
+        );
+      } else {
+        const state = {
+          isTrashed: trash,
+          trashedAt: trash ? new Date() : null,
+        };
+        await File.updateMany(
+          { parentDirId: { $in: directoryIds }, userId: user._id },
+          { $set: state },
+        ).session(session);
+        await Directory.updateMany(
+          { _id: { $in: directoryIds }, userId: user._id },
+          { $set: state },
+        ).session(session);
+        if (!trash) await assertQuota(user, session);
+      }
+      await reconcileSizes(user._id, session);
     });
-
-    await Share.deleteMany({
-      $or: [
-        { fileId: { $in: fileIds } },
-        { directoryId: { $in: directoryIds } },
-      ],
+    return res.json({
+      message:
+        action === "delete"
+          ? "Directory permanently deleted"
+          : action === "trash"
+            ? "Directory moved to trash"
+            : "Directory restored",
+      ...(action === "delete" ? { cleanupPending: true } : {}),
     });
-
-    return res.json({ message: "Directory permanently deleted" });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    if (error.status)
+      return res.status(error.status).json({ error: error.message });
+    next(error);
   }
-};
+}
+
+export const trashDirectory = (req, res, next) =>
+  mutateDirectory(req, res, next, "trash");
+export const restoreDirectory = (req, res, next) =>
+  mutateDirectory(req, res, next, "restore");
+export const permanentlyDeleteDirectory = (req, res, next) =>
+  mutateDirectory(req, res, next, "delete");

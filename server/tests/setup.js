@@ -9,6 +9,9 @@ process.env.RZP_PLAN_PRO_YEARLY = "plan_pro_yearly_test";
 process.env.RZP_PLAN_PREMIUM_MONTHLY = "plan_premium_monthly_test";
 process.env.RZP_PLAN_PREMIUM_YEARLY = "plan_premium_yearly_test";
 process.env.S3_BUCKET = "test-bucket";
+process.env.AWS_REGION = "us-east-1";
+process.env.S3_PROFILE_ACCESS_ID = "test-access-key";
+process.env.S3_PROFILE_ACCESS_SECRET = "test-secret-key";
 process.env.CLOUDFRONT_DOMAIN = "https://cdn.example.test";
 process.env.CLOUDFRONT_PUBLIC_ID = "test-key-pair";
 process.env.CLOUDFRONT_PRIVATE_KEY = "test-private-key";
@@ -28,5 +31,5 @@ vi.mock("../services/s3Service.js", () => ({
   createSignedGetUrl: vi.fn(async () => "https://s3.example.test/download"),
   getFileMetaData: vi.fn(async () => ({ ContentLength: 0 })),
   deleteS3File: vi.fn(async () => ({})),
-  deleteS3Files: vi.fn(async () => ({ Deleted: [] })),
+  deleteS3Files: vi.fn(async (keys) => ({ Deleted: keys })),
 }));

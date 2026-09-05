@@ -12,7 +12,7 @@ const fileSchema = new Schema(
     },
     extension: {
       type: String,
-      required: true,
+      default: "",
     },
     userId: {
       type: Schema.Types.ObjectId,
@@ -55,6 +55,9 @@ fileSchema.index({
   updatedAt: -1,
   _id: -1,
 });
+
+fileSchema.index({ userId: 1, isTrashed: 1, size: 1 });
+fileSchema.index({ uploadCompletedAt: 1, createdAt: 1 });
 
 const File = model("File", fileSchema);
 

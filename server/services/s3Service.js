@@ -11,16 +11,21 @@ import { s3Client } from "../config/s3Client.js";
 
 const Bucket = process.env.S3_BUCKET;
 
-export const createSignedUploadUrl = async ({ Key, ContentType }) => {
+export const createSignedUploadUrl = async ({
+  Key,
+  ContentType,
+  ContentLength,
+}) => {
   const command = new PutObjectCommand({
     Bucket,
     Key,
     ContentType,
+    ContentLength,
   });
 
   return await getSignedUrl(s3Client, command, {
     expiresIn: 300,
-    signableHeaders: new Set(["ContentType"]),
+    signableHeaders: new Set(["content-length"]),
   });
 };
 
@@ -55,12 +60,16 @@ export const deleteS3File = async (Key) => {
 };
 
 export const deleteS3Files = async (keys) => {
-  const command = new DeleteObjectsCommand({
-    Bucket,
-    Delete: {
-      Objects: keys,
-      Quiet: false,
-    },
-  });
-  return s3Client.send(command);
+  const result = { Deleted: [], Errors: [] };
+  for (let offset = 0; offset < keys.length; offset += 1000) {
+    const response = await s3Client.send(
+      new DeleteObjectsCommand({
+        Bucket,
+        Delete: { Objects: keys.slice(offset, offset + 1000), Quiet: false },
+      }),
+    );
+    result.Deleted.push(...(response.Deleted || []));
+    result.Errors.push(...(response.Errors || []));
+  }
+  return result;
 };

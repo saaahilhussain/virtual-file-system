@@ -1,322 +1,250 @@
 import path from "path";
-import Directory from "../models/directoryModel.js";
+import mongoose from "mongoose";
 import File from "../models/fileModel.js";
-import Share from "../models/shareModel.js";
-import User from "../models/userModel.js";
 import {
   createSignedUploadUrl,
   getFileMetaData,
-  deleteS3File,
 } from "../services/s3Service.js";
 import { createCloudFrontGetUrl } from "../services/cloudFrontService.js";
+import {
+  withStorageTransaction,
+  assertQuota,
+  liveAncestors,
+  adjustAncestorSizes,
+  removeFiles,
+  storageError,
+  UPLOAD_LIFETIME_MS,
+} from "../services/storageService.js";
 
-async function updateAncestorSizes(startParentId, delta) {
-  if (!startParentId || !Number.isFinite(delta) || delta === 0) return;
-
-  let parentId = startParentId;
-  while (parentId) {
-    const dir = await Directory.findById(parentId);
-    if (!dir) break;
-
-    dir.size = Math.max(0, (dir.size || 0) + delta);
-    await dir.save();
-    parentId = dir.parentDirId;
+function validateFileId(id) {
+  if (typeof id !== "string" || !mongoose.isObjectIdOrHexString(id)) {
+    throw storageError(400, "A valid fileId is required");
   }
 }
 
-async function getUploadContext({ userId, rootDirId, parentDirId, fileSizeInBytes }) {
-  if (!Number.isFinite(fileSizeInBytes) || fileSizeInBytes < 0) {
-    return { error: { status: 400, body: { error: "Invalid file size" } } };
-  }
+async function findFile(id, userId, session) {
+  const file = await File.findOne({ _id: id, userId }).session(session);
+  if (!file) throw storageError(404, "File not found");
+  return file;
+}
 
-  const parentDirData = await Directory.findOne({
-    _id: parentDirId,
-    userId,
-  });
-  if (!parentDirData) {
-    return {
-      error: { status: 404, body: { error: "Parent directory not found!" } },
-    };
-  }
-
-  const user = await User.findById(userId, { maxStorageInBytes: 1 }).lean();
-  if (!user) {
-    return { error: { status: 404, body: { error: "User not found!" } } };
-  }
-
-  const rootDirectory = await Directory.findOne(
-    { _id: rootDirId, userId },
-    { size: 1 },
-  ).lean();
-
-  const maxStorage = Number(user.maxStorageInBytes) || 0;
-  const usedStorage = Number(rootDirectory?.size) || 0;
-  const remainingStorage = Math.max(0, maxStorage - usedStorage);
-
-  if (fileSizeInBytes > remainingStorage) {
-    return {
-      error: {
-        status: 429,
-        body: { error: "File exceeds the maximum upload limit." },
-      },
-    };
-  }
-
-  return { parentDirData };
+function respondError(error, res, next) {
+  if (error.status)
+    return res.status(error.status).json({ error: error.message });
+  return next(error);
 }
 
 export const getFile = async (req, res, next) => {
   try {
-    const { id } = req.params;
-
-    const fileData = await File.findOne({
-      _id: id,
-      userId: req.user._id,
-    });
-
-    if (!fileData) {
-      return res.status(404).json({ error: "File not found!" });
-    }
-
-    if (!fileData.uploadCompletedAt) {
-      return res.status(409).json({ error: "File upload is not complete yet" });
-    }
-
-    const fileUrl = createCloudFrontGetUrl({
-      Key: `${id}${fileData.extension}`,
-      download: req.query.action === "download",
-      filename: fileData.name,
-    });
-
-    return res.redirect(fileUrl);
-  } catch (err) {
-    return next(err);
+    const file = await findFile(req.params.id, req.user._id, null);
+    if (!file.uploadCompletedAt)
+      throw storageError(409, "File upload is not complete yet");
+    if (file.isTrashed) throw storageError(409, "File is trashed");
+    await liveAncestors(file.parentDirId, req.user._id, null);
+    return res.redirect(
+      createCloudFrontGetUrl({
+        Key: `${file.id}${file.extension}`,
+        download: req.query.action === "download",
+        filename: file.name,
+      }),
+    );
+  } catch (error) {
+    return respondError(error, res, next);
   }
 };
 
 export const renameFile = async (req, res, next) => {
-  const { id } = req.params;
-  const file = await File.findOne({
-    _id: id,
-    userId: req.user._id,
-  });
-
-  if (!file) {
-    return res.status(404).json({ error: "File not found!" });
-  }
-
   try {
+    const file = await findFile(req.params.id, req.user._id, null);
     file.name = req.body.newFilename;
     file.updatedAt = new Date();
     await file.save();
-
-    return res.status(200).json({ message: "Renamed" });
-  } catch (err) {
-    err.status = 500;
-    next(err);
-  }
-};
-
-export const trashFile = async (req, res, next) => {
-  const { id } = req.params;
-  const file = await File.findOne({ _id: id, userId: req.user._id });
-
-  try {
-    if (!file) {
-      return res.status(404).json({
-        error: "File not found :(",
-      });
-    }
-
-    if (file.isTrashed) {
-      return res.status(200).json({ message: "File moved to trash" });
-    }
-
-    file.isTrashed = true;
-    file.trashedAt = new Date();
-    await file.save();
-
-    if (file.uploadCompletedAt) {
-      await updateAncestorSizes(file.parentDirId, -(Number(file.size) || 0));
-    }
-
-    return res.status(200).json({ message: "File moved to trash" });
-  } catch (err) {
-    next(err);
-  }
-};
-
-export const restoreFile = async (req, res, next) => {
-  const { id } = req.params;
-  const file = await File.findOne({ _id: id, userId: req.user._id });
-
-  try {
-    if (!file) {
-      return res.status(404).json({
-        error: "File not found :(",
-      });
-    }
-
-    if (!file.isTrashed) {
-      return res.status(200).json({ message: "File restored" });
-    }
-
-    file.isTrashed = false;
-    file.trashedAt = null;
-    await file.save();
-
-    if (file.uploadCompletedAt) {
-      await updateAncestorSizes(file.parentDirId, Number(file.size) || 0);
-    }
-
-    return res.status(200).json({ message: "File restored" });
-  } catch (err) {
-    next(err);
-  }
-};
-
-export const permanentlyDeleteFile = async (req, res, next) => {
-  const { id } = req.params;
-  const file = await File.findOne({ _id: id, userId: req.user._id });
-
-  try {
-    if (!file) {
-      return res.status(404).json({
-        error: "File not found :(",
-      });
-    }
-
-    if (!file.isTrashed && file.uploadCompletedAt) {
-      await updateAncestorSizes(file.parentDirId, -(Number(file.size) || 0));
-    }
-
-    await File.deleteOne({ _id: file._id });
-    await Share.deleteMany({ fileId: file._id });
-    await deleteS3File(`${file.id}${file.extension}`);
-    return res.status(200).json({ message: "File Deleted Permanently" });
-  } catch (err) {
-    next(err);
+    return res.json({ message: "Renamed" });
+  } catch (error) {
+    return respondError(error, res, next);
   }
 };
 
 export const uploadInitiate = async (req, res, next) => {
   try {
-    const parentDirId = req.body.parentDirId || req.user.rootDirId;
-    const filename = req.body.name || "untitled";
-    const fileSizeInBytes = Number(req.body.size);
-
-    const uploadContext = await getUploadContext({
-      userId: req.user._id,
-      rootDirId: req.user.rootDirId,
-      parentDirId,
-      fileSizeInBytes,
-    });
-    if (uploadContext.error) {
-      return res
-        .status(uploadContext.error.status)
-        .json(uploadContext.error.body);
+    const size = Number(req.body.size);
+    if (
+      !["number", "string"].includes(typeof req.body.size) ||
+      String(req.body.size).trim() === "" ||
+      !Number.isSafeInteger(size) ||
+      size < 0
+    ) {
+      throw storageError(400, "Invalid file size");
     }
-
-    const extension = path.extname(filename);
-    const insertedFile = await File.create({
-      extension,
-      name: filename,
-      size: fileSizeInBytes,
-      parentDirId: uploadContext.parentDirData._id,
-      userId: req.user._id,
-      isTrashed: false,
-      trashedAt: null,
-      uploadCompletedAt: null,
-    });
-
+    const name = req.body.name || "untitled";
+    if (typeof name !== "string") throw storageError(400, "Invalid filename");
+    const parentDirId = req.body.parentDirId || req.user.rootDirId;
+    if (!mongoose.isObjectIdOrHexString(parentDirId))
+      throw storageError(400, "Invalid parent directory");
+    const fileId = new mongoose.Types.ObjectId();
+    const extension = path.extname(name);
+    // Signing has no remote side effect. Only expose the URL after reservation.
     const uploadUrl = await createSignedUploadUrl({
-      Key: `${insertedFile._id}${extension}`,
+      Key: `${fileId}${extension}`,
       ContentType: req.body.contentType,
+      ContentLength: size,
     });
-
-    return res.status(201).json({
-      uploadUrl,
-      fileId: insertedFile._id,
+    await withStorageTransaction(req.user._id, async ({ user, session }) => {
+      await liveAncestors(parentDirId, user._id, session);
+      await assertQuota(user, session, size);
+      await File.create(
+        [
+          {
+            _id: fileId,
+            name,
+            size,
+            extension,
+            parentDirId,
+            userId: user._id,
+            uploadCompletedAt: null,
+          },
+        ],
+        { session },
+      );
     });
-  } catch (err) {
-    next(err);
+    return res.status(201).json({ uploadUrl, fileId });
+  } catch (error) {
+    return respondError(error, res, next);
   }
 };
 
 export const uploadComplete = async (req, res, next) => {
   try {
     const { fileId } = req.body;
-
-    if (!fileId) {
-      return res.status(400).json({ error: "fileId is required" });
-    }
-
-    const file = await File.findOne({
-      _id: fileId,
-      userId: req.user._id,
-    });
-    if (!file) {
-      return res.status(404).json({ error: "File not found!" });
-    }
-
-    if (file.uploadCompletedAt) {
+    validateFileId(fileId);
+    const initial = await findFile(fileId, req.user._id, null);
+    if (initial.uploadCompletedAt)
       return res.json({ message: "Upload Complete" });
-    }
-
-    let fileData;
+    // S3 calls stay outside retryable MongoDB transactions.
+    let metadata;
     try {
-      fileData = await getFileMetaData(`${file.id}${file.extension}`);
+      metadata = await getFileMetaData(`${initial.id}${initial.extension}`);
     } catch (error) {
-      await File.deleteOne({ _id: file._id, userId: req.user._id });
-      return res
-        .status(400)
-        .json({ error: "File could not be uploaded properly" });
+      const missing =
+        error.$metadata?.httpStatusCode === 404 ||
+        ["NotFound", "NoSuchKey"].includes(error.name);
+      throw storageError(
+        missing ? 409 : 503,
+        missing
+          ? "Upload not found in S3 yet; retry or cancel"
+          : "S3 verification unavailable; retry completion",
+      );
     }
-
-    if (Number(fileData.ContentLength) !== Number(file.size)) {
-      await deleteS3File(`${file.id}${file.extension}`).catch(() => {});
-      await File.deleteOne({ _id: file._id, userId: req.user._id });
-      return res.status(400).json({ error: "File size does not match" });
-    }
-
-    file.uploadCompletedAt = new Date();
-    await file.save();
-    await updateAncestorSizes(file.parentDirId, Number(file.size));
-
+    const result = await withStorageTransaction(
+      req.user._id,
+      async ({ user, session }) => {
+        const file = await findFile(fileId, user._id, session);
+        if (file.uploadCompletedAt) return "complete";
+        if (Date.now() - file.createdAt.getTime() >= UPLOAD_LIFETIME_MS) {
+          await removeFiles([file], user._id, session);
+          return "expired";
+        }
+        if (Number(metadata.ContentLength) !== file.size) {
+          await removeFiles([file], user._id, session);
+          return "mismatch";
+        }
+        if (file.isTrashed)
+          throw storageError(409, "Cannot complete a trashed upload");
+        await liveAncestors(file.parentDirId, user._id, session);
+        // Recheck after a subscription downgrade; this file is already reserved.
+        await assertQuota(user, session);
+        file.uploadCompletedAt = new Date();
+        await file.save({ session });
+        await adjustAncestorSizes(
+          file.parentDirId,
+          user._id,
+          file.size,
+          session,
+        );
+        return "complete";
+      },
+    );
+    if (result !== "complete")
+      return res.status(result === "expired" ? 410 : 400).json({
+        error:
+          result === "expired" ? "Upload expired" : "File size does not match",
+        cleanupPending: true,
+      });
     return res.json({ message: "Upload Complete" });
   } catch (error) {
-    next(error);
+    return respondError(error, res, next);
   }
 };
 
 export const uploadCancel = async (req, res, next) => {
-  const { fileId } = req.body;
-
-  if (!fileId) {
-    return res.status(400).json({ error: "fileId is required" });
-  }
-
   try {
-    const file = await File.findOne({
-      _id: fileId,
-      userId: req.user._id,
+    const { fileId } = req.body;
+    validateFileId(fileId);
+    await withStorageTransaction(req.user._id, async ({ user, session }) => {
+      const file = await File.findOne({
+        _id: fileId,
+        userId: user._id,
+      }).session(session);
+      if (!file) return;
+      if (file.uploadCompletedAt)
+        throw storageError(409, "Completed uploads cannot be cancelled");
+      await removeFiles([file], user._id, session);
     });
-
-    if (!file) {
-      return res.status(404).json({ error: "File not found" });
-    }
-
-    if (file.uploadCompletedAt) {
-      return res
-        .status(409)
-        .json({ error: "Completed uploads cannot be cancelled" });
-    }
-
-    await File.deleteOne({ _id: fileId, userId: req.user._id });
-    await deleteS3File(`${fileId}${file.extension}`).catch(() => {});
-
-    return res.status(200).json({ message: "Upload cancelled" });
-  } catch (err) {
-    next(err);
+    return res.json({ message: "Upload cancelled", cleanupPending: true });
+  } catch (error) {
+    return respondError(error, res, next);
   }
 };
+
+async function mutateFile(req, res, next, action) {
+  try {
+    await withStorageTransaction(req.user._id, async ({ user, session }) => {
+      const file = await findFile(req.params.id, user._id, session);
+      if (action === "delete") {
+        if (!file.isTrashed && file.uploadCompletedAt)
+          await adjustAncestorSizes(
+            file.parentDirId,
+            user._id,
+            -file.size,
+            session,
+          );
+        await removeFiles([file], user._id, session);
+        return;
+      }
+      const trash = action === "trash";
+      if (file.isTrashed === trash) return;
+      if (!trash) {
+        await liveAncestors(file.parentDirId, user._id, session);
+        await assertQuota(user, session, file.size);
+      }
+      if (file.uploadCompletedAt)
+        await adjustAncestorSizes(
+          file.parentDirId,
+          user._id,
+          trash ? -file.size : file.size,
+          session,
+        );
+      file.isTrashed = trash;
+      file.trashedAt = trash ? new Date() : null;
+      await file.save({ session });
+    });
+    return res.json({
+      message:
+        action === "delete"
+          ? "File Deleted Permanently"
+          : action === "trash"
+            ? "File moved to trash"
+            : "File restored",
+      ...(action === "delete" ? { cleanupPending: true } : {}),
+    });
+  } catch (error) {
+    return respondError(error, res, next);
+  }
+}
+
+export const trashFile = (req, res, next) =>
+  mutateFile(req, res, next, "trash");
+export const restoreFile = (req, res, next) =>
+  mutateFile(req, res, next, "restore");
+export const permanentlyDeleteFile = (req, res, next) =>
+  mutateFile(req, res, next, "delete");

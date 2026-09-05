@@ -15,11 +15,14 @@ import Directory from "../models/directoryModel.js";
 import File from "../models/fileModel.js";
 import Share from "../models/shareModel.js";
 import User from "../models/userModel.js";
+import StorageCleanup from "../models/storageCleanupModel.js";
 import {
-  deleteS3File,
-  deleteS3Files,
-  getFileMetaData,
-} from "../services/s3Service.js";
+  processStorageCleanup,
+  expireAbandonedUploads,
+  reconcileAccountStorage,
+} from "../services/storageMaintenanceService.js";
+import { UPLOAD_LIFETIME_MS } from "../services/storageService.js";
+import { deleteS3Files, getFileMetaData } from "../services/s3Service.js";
 import { redisMock } from "./helpers/redisMock.js";
 
 let app;
@@ -83,12 +86,14 @@ beforeAll(async () => {
     replSet: { count: 1, storageEngine: "wiredTiger" },
   });
   await mongoose.connect(replicaSet.getUri());
+  await StorageCleanup.init();
   ({ default: app } = await import("../app.js"));
 });
 
 afterEach(async () => {
   redisMock.reset();
   vi.clearAllMocks();
+  vi.restoreAllMocks();
   await Promise.all(
     Object.values(mongoose.connection.collections).map((collection) =>
       collection.deleteMany({}),
@@ -147,7 +152,9 @@ describe("file upload lifecycle", () => {
 
     expect(completed.status).toBe(400);
     expect(await File.findById(initiated.body.fileId)).toBeNull();
-    expect(deleteS3File).toHaveBeenCalledOnce();
+    expect(await StorageCleanup.countDocuments()).toBe(1);
+    await processStorageCleanup();
+    expect(deleteS3Files).toHaveBeenCalledOnce();
     expect((await Directory.findById(account.rootDirId)).size).toBe(0);
   });
 
@@ -240,8 +247,355 @@ describe("recursive directory lifecycle", () => {
     expect(deleted.status).toBe(200);
     expect(await Directory.findById(parent._id)).toBeNull();
     expect(await File.findById(file._id)).toBeNull();
+    await processStorageCleanup();
     expect(deleteS3Files).toHaveBeenCalledOnce();
     expect((await Directory.findById(account.rootDirId)).size).toBe(0);
+  });
+});
+
+async function initiate(account, size = 80, parentDirId) {
+  return request(app)
+    .post("/file/upload/initiate")
+    .set("Cookie", account.cookie)
+    .send({ name: "test.bin", size, parentDirId });
+}
+
+function complete(account, fileId) {
+  return request(app)
+    .post("/file/upload/complete")
+    .set("Cookie", account.cookie)
+    .send({ fileId });
+}
+
+describe("storage concurrency and rollback", () => {
+  it("reserves quota atomically across simultaneous upload initiations", async () => {
+    const account = await createAccount();
+    await User.updateOne({ _id: account.user._id }, { maxStorageInBytes: 100 });
+    const responses = await Promise.all([initiate(account), initiate(account)]);
+    expect(responses.map((r) => r.status).sort()).toEqual([201, 429]);
+    expect(await File.countDocuments()).toBe(1);
+    expect((await Directory.findById(account.rootDirId)).size).toBe(0);
+    const fileId = responses.find((r) => r.status === 201).body.fileId;
+    for (let i = 0; i < 2; i++) {
+      expect(
+        (
+          await request(app)
+            .delete("/file/upload/cancel")
+            .set("Cookie", account.cookie)
+            .send({ fileId })
+        ).status,
+      ).toBe(200);
+    }
+    expect((await initiate(account, 100)).status).toBe(201);
+    expect(await StorageCleanup.countDocuments()).toBe(1);
+  });
+
+  it("does not double-count concurrent completion of the same file", async () => {
+    const account = await createAccount();
+    const upload = await initiate(account);
+    vi.mocked(getFileMetaData).mockResolvedValue({ ContentLength: 80 });
+    const responses = await Promise.all(
+      Array.from({ length: 4 }, () => complete(account, upload.body.fileId)),
+    );
+    expect(responses.map((r) => r.status)).toEqual([200, 200, 200, 200]);
+    expect((await Directory.findById(account.rootDirId)).size).toBe(80);
+  });
+
+  it("preserves ancestor totals when distinct nested uploads complete concurrently", async () => {
+    const account = await createAccount();
+    const child = await createDirectory({ name: "child", account });
+    const uploads = await Promise.all([
+      initiate(account, 80, child._id),
+      initiate(account, 80, child._id),
+    ]);
+    vi.mocked(getFileMetaData).mockResolvedValue({ ContentLength: 80 });
+    const responses = await Promise.all(
+      uploads.map((r) => complete(account, r.body.fileId)),
+    );
+    expect(responses.map((r) => r.status)).toEqual([200, 200]);
+    expect((await Directory.findById(child._id)).size).toBe(160);
+    expect((await Directory.findById(account.rootDirId)).size).toBe(160);
+  });
+
+  it("rolls back completion and earlier ancestor writes if a later write fails", async () => {
+    const account = await createAccount();
+    const child = await createDirectory({ name: "child", account });
+    const upload = await initiate(account, 80, child._id);
+    vi.mocked(getFileMetaData).mockResolvedValue({ ContentLength: 80 });
+    const update = Directory.updateOne.bind(Directory);
+    const fault = vi
+      .spyOn(Directory, "updateOne")
+      .mockImplementationOnce(update)
+      .mockRejectedValueOnce(new Error("injected ancestor failure"));
+    expect((await complete(account, upload.body.fileId)).status).toBe(500);
+    expect(
+      (await File.findById(upload.body.fileId)).uploadCompletedAt,
+    ).toBeNull();
+    expect((await Directory.findById(child._id)).size).toBe(0);
+    expect((await Directory.findById(account.rootDirId)).size).toBe(0);
+    fault.mockRestore();
+    expect((await complete(account, upload.body.fileId)).status).toBe(200);
+    expect((await Directory.findById(account.rootDirId)).size).toBe(80);
+  });
+
+  it("preserves a pending upload and its reservation on transient S3 HEAD failure", async () => {
+    const account = await createAccount();
+    await User.updateOne({ _id: account.user._id }, { maxStorageInBytes: 100 });
+    const upload = await initiate(account);
+    vi.mocked(getFileMetaData).mockRejectedValueOnce(
+      new Error("S3 unavailable"),
+    );
+    expect((await complete(account, upload.body.fileId)).status).toBe(503);
+    expect(await File.findById(upload.body.fileId)).not.toBeNull();
+    expect(await StorageCleanup.countDocuments()).toBe(0);
+    expect((await initiate(account, 30)).status).toBe(429);
+  });
+
+  it("cannot resurrect an upload when cancellation races with completion", async () => {
+    const account = await createAccount();
+    const upload = await initiate(account);
+    vi.mocked(getFileMetaData).mockResolvedValue({ ContentLength: 80 });
+    const [completed, cancelled] = await Promise.all([
+      complete(account, upload.body.fileId),
+      request(app)
+        .delete("/file/upload/cancel")
+        .set("Cookie", account.cookie)
+        .send({ fileId: upload.body.fileId }),
+    ]);
+    const file = await File.findById(upload.body.fileId);
+    if (file) {
+      expect(completed.status).toBe(200);
+      expect(cancelled.status).toBe(409);
+      expect(file.uploadCompletedAt).not.toBeNull();
+      expect(await StorageCleanup.countDocuments()).toBe(0);
+      expect((await Directory.findById(account.rootDirId)).size).toBe(80);
+    } else {
+      expect(cancelled.status).toBe(200);
+      expect(completed.status).toBe(404);
+      expect(await StorageCleanup.countDocuments()).toBe(1);
+      expect((await Directory.findById(account.rootDirId)).size).toBe(0);
+    }
+  });
+
+  it("rejects upload into a trashed parent and quota-bypassing restores", async () => {
+    const account = await createAccount();
+    await User.updateOne({ _id: account.user._id }, { maxStorageInBytes: 100 });
+    const child = await createDirectory({ name: "child", account });
+    const upload = await initiate(account, 80, child._id);
+    vi.mocked(getFileMetaData).mockResolvedValue({ ContentLength: 80 });
+    await complete(account, upload.body.fileId);
+    expect(
+      (
+        await request(app)
+          .delete(`/directory/${child._id}`)
+          .set("Cookie", account.cookie)
+      ).status,
+    ).toBe(200);
+    expect((await initiate(account, 10, child._id)).status).toBe(409);
+    expect((await initiate(account, 80)).status).toBe(201);
+    expect(
+      (
+        await request(app)
+          .patch(`/directory/${child._id}/restore`)
+          .set("Cookie", account.cookie)
+      ).status,
+    ).toBe(429);
+    expect((await Directory.findById(child._id)).isTrashed).toBe(true);
+    expect((await File.findById(upload.body.fileId)).isTrashed).toBe(true);
+    expect((await Directory.findById(account.rootDirId)).size).toBe(0);
+  });
+
+  it("rolls back deletion and accounting when the durable cleanup write fails", async () => {
+    const account = await createAccount();
+    const upload = await initiate(account);
+    vi.mocked(getFileMetaData).mockResolvedValue({ ContentLength: 80 });
+    await complete(account, upload.body.fileId);
+    vi.spyOn(StorageCleanup, "bulkWrite").mockRejectedValueOnce(
+      new Error("injected outbox failure"),
+    );
+    expect(
+      (
+        await request(app)
+          .delete(`/file/${upload.body.fileId}/permanent`)
+          .set("Cookie", account.cookie)
+      ).status,
+    ).toBe(500);
+    expect(await File.findById(upload.body.fileId)).not.toBeNull();
+    expect((await Directory.findById(account.rootDirId)).size).toBe(80);
+    expect(await StorageCleanup.countDocuments()).toBe(0);
+    expect(deleteS3Files).not.toHaveBeenCalled();
+  });
+});
+
+describe("durable storage maintenance", () => {
+  it("atomically queues empty-trash cleanup while preserving live files", async () => {
+    const account = await createAccount();
+    const trashed = await initiate(account);
+    const live = await initiate(account);
+    vi.mocked(getFileMetaData).mockResolvedValue({ ContentLength: 80 });
+    await complete(account, trashed.body.fileId);
+    await complete(account, live.body.fileId);
+    await request(app)
+      .delete(`/file/${trashed.body.fileId}`)
+      .set("Cookie", account.cookie);
+    const response = await request(app)
+      .delete("/trash")
+      .set("Cookie", account.cookie);
+    expect(response.status).toBe(200);
+    expect(response.body.cleanupPending).toBe(true);
+    expect(await File.findById(trashed.body.fileId)).toBeNull();
+    expect(await File.findById(live.body.fileId)).not.toBeNull();
+    expect((await Directory.findById(account.rootDirId)).size).toBe(80);
+    expect(await StorageCleanup.countDocuments()).toBe(1);
+  });
+
+  it("rejects expired completion and releases its reservation durably", async () => {
+    const account = await createAccount();
+    await User.updateOne({ _id: account.user._id }, { maxStorageInBytes: 100 });
+    const upload = await initiate(account);
+    await File.updateOne(
+      { _id: upload.body.fileId },
+      { createdAt: new Date(Date.now() - UPLOAD_LIFETIME_MS - 1000) },
+    );
+    vi.mocked(getFileMetaData).mockResolvedValue({ ContentLength: 80 });
+    expect((await complete(account, upload.body.fileId)).status).toBe(410);
+    expect(await File.findById(upload.body.fileId)).toBeNull();
+    expect(await StorageCleanup.countDocuments()).toBe(1);
+    expect((await initiate(account, 100)).status).toBe(201);
+  });
+
+  it("serializes reconciliation against concurrent completion", async () => {
+    const account = await createAccount();
+    const upload = await initiate(account);
+    vi.mocked(getFileMetaData).mockResolvedValue({ ContentLength: 80 });
+    await Directory.updateOne({ _id: account.rootDirId }, { size: 999 });
+    const [completion] = await Promise.all([
+      complete(account, upload.body.fileId),
+      reconcileAccountStorage(account.user._id),
+    ]);
+    expect(completion.status).toBe(200);
+    expect((await Directory.findById(account.rootDirId)).size).toBe(80);
+  });
+
+  it("expires abandoned reservations without deleting fresh or completed uploads", async () => {
+    const account = await createAccount();
+    const stale = await initiate(account);
+    const fresh = await initiate(account);
+    const done = await initiate(account);
+    vi.mocked(getFileMetaData).mockResolvedValue({ ContentLength: 80 });
+    await complete(account, done.body.fileId);
+    await File.updateMany(
+      { _id: { $in: [stale.body.fileId, done.body.fileId] } },
+      { createdAt: new Date(Date.now() - UPLOAD_LIFETIME_MS - 1000) },
+    );
+    expect(await expireAbandonedUploads()).toBe(1);
+    expect(await File.findById(stale.body.fileId)).toBeNull();
+    expect(await File.findById(fresh.body.fileId)).not.toBeNull();
+    expect(await File.findById(done.body.fileId)).not.toBeNull();
+    expect((await Directory.findById(account.rootDirId)).size).toBe(80);
+    expect(await StorageCleanup.countDocuments()).toBe(1);
+  });
+
+  it("retries per-object S3 failures even when the batch request succeeds", async () => {
+    const account = await createAccount();
+    const child = await createDirectory({ name: "child", account });
+    const first = await initiate(account, 80, child._id);
+    const second = await initiate(account, 80, child._id);
+    expect(
+      (
+        await request(app)
+          .delete(`/directory/${child._id}/permanent`)
+          .set("Cookie", account.cookie)
+      ).status,
+    ).toBe(200);
+    const goodKey = `${first.body.fileId}.bin`;
+    const badKey = `${second.body.fileId}.bin`;
+    vi.mocked(deleteS3Files).mockResolvedValueOnce({
+      Deleted: [{ Key: goodKey }],
+      Errors: [{ Key: badKey, Code: "AccessDenied" }],
+    });
+    const now = new Date();
+    expect(await processStorageCleanup({ now })).toEqual({
+      deleted: 1,
+      failed: 1,
+    });
+    expect((await StorageCleanup.findById(badKey)).lastError).toBe(
+      "AccessDenied",
+    );
+    expect(
+      (await StorageCleanup.findById(goodKey)).lastDeletedAt,
+    ).not.toBeNull();
+    expect(
+      await processStorageCleanup({ now: new Date(now.getTime() + 3000) }),
+    ).toEqual({ deleted: 1, failed: 0 });
+    expect((await StorageCleanup.findById(badKey)).attempts).toBe(0);
+    expect(await File.countDocuments()).toBe(0);
+  });
+
+  it("recovers expired worker leases and retries S3 outages", async () => {
+    const account = await createAccount();
+    const upload = await initiate(account);
+    await request(app)
+      .delete("/file/upload/cancel")
+      .set("Cookie", account.cookie)
+      .send({ fileId: upload.body.fileId });
+    const now = new Date();
+    await StorageCleanup.updateMany(
+      {},
+      { leaseToken: "crashed-worker", leaseUntil: new Date(now.getTime() - 1) },
+    );
+    vi.mocked(deleteS3Files).mockRejectedValueOnce(new Error("S3 unavailable"));
+    expect(await processStorageCleanup({ now })).toEqual({
+      deleted: 0,
+      failed: 1,
+    });
+    expect(
+      await processStorageCleanup({ now: new Date(now.getTime() + 3000) }),
+    ).toEqual({ deleted: 1, failed: 0 });
+  });
+
+  it("leases each cleanup job once across concurrent workers and revisits late writes", async () => {
+    const account = await createAccount();
+    const upload = await initiate(account);
+    await request(app)
+      .delete("/file/upload/cancel")
+      .set("Cookie", account.cookie)
+      .send({ fileId: upload.body.fileId });
+    const now = new Date();
+    const results = await Promise.all([
+      processStorageCleanup({ now }),
+      processStorageCleanup({ now }),
+    ]);
+    expect(results.reduce((sum, result) => sum + result.deleted, 0)).toBe(1);
+    expect(deleteS3Files).toHaveBeenCalledTimes(1);
+    expect(await StorageCleanup.countDocuments()).toBe(1);
+    await processStorageCleanup({
+      now: new Date(now.getTime() + UPLOAD_LIFETIME_MS + 1),
+    });
+    expect(deleteS3Files).toHaveBeenCalledTimes(2);
+  });
+
+  it("reconciles drift from file records, excluding pending and trashed files", async () => {
+    const account = await createAccount();
+    const child = await createDirectory({ name: "child", account });
+    const upload = await initiate(account, 80, child._id);
+    vi.mocked(getFileMetaData).mockResolvedValue({ ContentLength: 80 });
+    await complete(account, upload.body.fileId);
+    await initiate(account, 500, child._id);
+    await File.create({
+      name: "trashed.bin",
+      extension: ".bin",
+      size: 300,
+      userId: account.user._id,
+      parentDirId: child._id,
+      uploadCompletedAt: new Date(),
+      isTrashed: true,
+    });
+    await Directory.updateMany({ userId: account.user._id }, { size: 999 });
+    expect(await reconcileAccountStorage(account.user._id)).toBe(2);
+    expect((await Directory.findById(child._id)).size).toBe(80);
+    expect((await Directory.findById(account.rootDirId)).size).toBe(80);
+    expect(await reconcileAccountStorage(account.user._id)).toBe(0);
   });
 });
 

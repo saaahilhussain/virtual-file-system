@@ -2,11 +2,16 @@ import mongoose from "mongoose";
 import app from "./app.js";
 import { connectDB } from "./config/db.js";
 import redisClient, { connectRedis } from "./config/redis.js";
+import StorageCleanup from "./models/storageCleanupModel.js";
+import { startStorageMaintenance } from "./services/storageMaintenanceService.js";
 
 let server;
+let stopStorageMaintenance;
 
 async function start() {
   await Promise.all([connectDB(), connectRedis()]);
+  await StorageCleanup.init();
+  stopStorageMaintenance = startStorageMaintenance();
   server = app.listen(process.env.PORT, () => {
     console.log("Server Started");
   });
@@ -19,6 +24,7 @@ async function shutdown(signal) {
       server.close((error) => (error ? reject(error) : resolve()));
     });
   }
+  if (stopStorageMaintenance) await stopStorageMaintenance();
   if (redisClient.isOpen) await redisClient.quit();
   await mongoose.connection.close();
   process.exit(0);

@@ -14,7 +14,7 @@ Author: Sahil Hussain. Portfolio/interview-focused project — see `FILE_SHELTER
 # Server (loads .env via node --env-file)
 cd server && npm run server        # dev with --watch
 cd server && npm run setup         # applies DB collMod $jsonSchema validators
-cd server && npm test              # 17 backend integration tests
+cd server && npm test              # backend integration and S3 service tests
 
 # Client
 cd client && npm run dev           # vite --host
@@ -33,6 +33,14 @@ Redis test double. The client still has a stub `dummyTest.js`.
   permissions, while controller-level hierarchy checks prevent actors managing
   peers or higher roles. Role changes and account deletion revoke Redis sessions.
 - **Quota model**: `user.maxStorageInBytes` (default 1GB free); plans map Razorpay plan IDs → quotas (Pro 200GB, Premium 2TB) via `config/plans.js`. Directory sizes roll up ancestors on upload/delete.
+- **Storage transactions**: `services/storageService.js` serializes account storage
+  writes through the existing user `__v` field in a MongoDB transaction. Pending
+  non-trashed file rows reserve quota; completion and ancestor totals commit
+  together. Restores also enforce quota. All new storage writers must use this helper.
+- **Cleanup**: metadata deletion queues S3 keys transactionally. The server's
+  maintenance loop expires 24-hour pending uploads, retries leased cleanup jobs,
+  and reconciles directory sizes. Successful cleanup tombstones are retained and
+  revisited daily. See `server/docs/STORAGE_RELIABILITY.md` for costs and limits.
 - **Soft deletes everywhere**: `isTrashed`/`trashedAt` on files/dirs/users, `isDeleted` on users. Hard delete only via `/permanent` endpoints or empty-trash.
 - **Ownership scoping**: every file/dir query filters by `userId: req.user._id`.
 - **Cursor pagination**: base64url of `{updatedAt, id}`, keyset predicate with `_id` tiebreaker; merged files+dirs page via `$unionWith`.
@@ -46,11 +54,11 @@ Redis test double. The client still has a stub `dummyTest.js`.
 
 ## Active roadmap (from FILE_SHELTER_ROADMAP.md)
 
-1. Reliability: add concurrent upload quota reservation, atomic/compensated
-   ancestor accounting, abandoned-upload cleanup, and recursive-delete retries.
+1. Reliability: quota reservation, transactional accounting, abandoned-upload
+   cleanup and durable S3 retries implemented. Next: scale large-account scans,
+   review tombstone retention costs, and add a browser completion-retry flow.
 2. Hardening: extend Zod validation beyond auth/sharing; add webhook event
-   ordering/deduplication; make subscription+quota and delete+S3 cleanup
-   transaction-safe or compensating; add quota reconciliation.
-3. Tests: 17 backend integration tests currently pass and gate deployment;
+   ordering/deduplication; make subscription+quota updates transaction-safe.
+3. Tests: backend integration and S3 service tests gate deployment;
    extend coverage as reliability work lands. Sharing is implemented.
 4. Observability → 5. Service-layer refactor → 6. README/OpenAPI polish.
