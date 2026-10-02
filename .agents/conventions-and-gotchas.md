@@ -12,18 +12,14 @@
 
 ## Traps / known gaps (do not assume these work)
 
-1. **README is outdated**: claims JWT auth and env names `MONGO_URI`, `JWT_SECRET`, `AWS_BUCKET_NAME`, `CLOUDFRONT_URL`, `RAZORPAY_*`. Real: Redis signed-cookie sessions; env names `MONGODB_URI`, `SESSION_SECRET`, `S3_BUCKET`, `CLOUDFRONT_DOMAIN`, `RZP_*`. Fix README before trusting it.
+1. **README reflects current sessions and env names**: Redis signed-cookie sessions; `MONGODB_URI`, `SESSION_SECRET`, `S3_BUCKET`, `CLOUDFRONT_DOMAIN`, `RZP_*`. Examples are in `server/.env.example` and `client/.env.example`.
 2. **Administrative RBAC is wired**: `/users` routes use permission middleware,
    and controller-level role hierarchy prevents actors managing peers or higher
    roles. Role changes and account deletion invalidate Redis sessions.
-3. **Uploads use presigned S3 PUTs**: initiation creates pending metadata,
-   completion verifies S3 object size, then commits quota usage. Concurrent
-   initiation/completion and abandoned pending uploads still need hardening.
-4. **Webhook parsing is correct but ordering is not hardened**: Razorpay
-   signatures are checked against raw bytes and provider status names are
-   supported. There is no event ledger/deduplication or stale-event protection.
-5. **No transactions** except User+rootDir creation. Subscription+quota updates and recursive delete+S3 cleanup are non-atomic.
-6. **Directory.size drift possible**: ancestor rollups can partially fail; no reconciliation job yet.
+3. **Uploads use presigned S3 PUTs**: pending file records reserve quota in an account transaction. Completion verifies S3 size and atomically commits the flag and ancestor totals. Browser completion retry reuses the file ID while the Drive page is mounted.
+4. **Billing current-state sync**: webhook signatures use raw bytes; an event ledger and billingRevision fencing protect atomic subscription/quota updates. See `server/docs/BILLING_RELIABILITY.md`.
+5. **Shared account transaction**: storage and billing conflict on User.__v via `accountTransactionService.js`. New storage writers must use this protocol. MongoDB requires a replica set.
+6. **Cleanup and reconciliation**: metadata deletion queues S3 jobs transactionally. Maintenance expires pending uploads, retries leased cleanup, and repairs directory sizes. Tombstones are retained and revisited daily; see `server/docs/STORAGE_RELIABILITY.md` for limits.
 7. **Legacy Session Mongo model** remains in the repository but administrative
    features now use Redis, the authoritative session store.
 8. **Directory.path[] materialized chain** has a legacy-rebuild fallback in directoryController — old docs may lack full path arrays.
@@ -32,10 +28,6 @@
 
 ## Testing
 
-Backend: Vitest + Supertest integration harness using an in-memory MongoDB replica
-set and Redis test double. There are currently 17 passing tests covering OTP-gated
-registration, session lifecycle/cap eviction, role hierarchy, webhook signatures
-and status transitions, upload lifecycle/mismatch cleanup, recursive directory
-trash/restore/delete, root protection, plan allowlisting, and share boundaries.
-The backend GitHub Actions deployment is gated on this suite. The client test
-script remains a stub.
+Backend: Vitest + Supertest with an in-memory MongoDB replica set and Redis/provider doubles. Tests cover security, storage concurrency and rollback, cleanup, sharing, billing consistency and S3 SDK behavior. Backend deployment is gated on this suite.
+
+Client: Vitest + Testing Library exercise real Drive UI and API calls with fetch/XHR doubles. Frontend deployment runs `npm test` before build/publish. `npm run demo:upload` records a deterministic Playwright browser flow; it is not a live-provider certification. Repository-wide client lint has existing debt.

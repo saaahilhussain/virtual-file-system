@@ -9,10 +9,12 @@ async function handleFetchErrors(response) {
     try {
       const data = await response.json();
       if (data.error) errMsg = data.error;
-    } catch (_) {
+    } catch {
       // If JSON parsing fails, default errMsg stays
     }
-    throw new Error(errMsg);
+    const error = new Error(response.status === 401 ? "Unauthorized" : errMsg);
+    error.status = response.status;
+    throw error;
   }
   return response;
 }

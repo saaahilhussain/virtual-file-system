@@ -103,8 +103,10 @@ Size mismatches and expired completion remove metadata and queue cleanup.
   recovered from MongoDB. Finding those requires an S3 inventory comparison.
 - Reconciliation repairs cached sizes, not missing metadata or directory cycles.
   It does not delete completed files after a plan downgrade.
-- The browser currently has no dedicated completion-retry UI. The backend retry
-  contract is available; abandoned attempts eventually expire.
+- The browser offers completion retry while the Drive page stays mounted,
+  reusing the existing file ID. Reloads and navigation lose the attempt;
+  abandoned uploads eventually expire. See the
+  [recorded recovery demo](../../docs/upload-recovery.md).
 - Tests use a real in-memory MongoDB replica set and mocked S3. Signing and batch
   construction are tested with the real AWS SDK, but production S3/CORS/IAM and
   bucket versioning still need environment-specific verification.

@@ -22,12 +22,13 @@ cd client && npm run lint          # eslint .
 ```
 
 The backend uses Vitest + Supertest with an in-memory MongoDB replica set and
-Redis test double. The client still has a stub `dummyTest.js`.
+Redis test double. The client uses Vitest + Testing Library for Drive flows,
+with fetch/XHR doubles. `npm run demo:upload` records recovery via Playwright.
 
 ## Critical facts
 
-- **Auth is NOT JWT** — signed-cookie session ID (`sid`) stored in Redis as JSON (`session:<sid>`), with a legacy Mongo `Session` model still consulted by admin features. README's env/JWT claims are outdated.
-- **Env names**: real ones are `MONGODB_URI`, `SESSION_SECRET`, `S3_BUCKET`, `CLOUDFRONT_DOMAIN`, `RZP_*` (NOT `MONGO_URI`, `JWT_SECRET`, etc. as README says).
+- **Auth is NOT JWT** — signed-cookie session ID (`sid`) stored in Redis as JSON (`session:<sid>`), with a legacy Mongo `Session` model remaining in the repository. Redis is authoritative for authentication and administrative revocation. README now documents this implementation.
+- **Env names**: `MONGODB_URI`, `SESSION_SECRET`, `S3_BUCKET`, `CLOUDFRONT_DOMAIN`, `RZP_*`; see the current README and `.env.example` files.
 - **Roles**: lowercase strings `"user" | "manager" | "admin" | "owner"`
   (userModel enum). Administrative `/users` routes enforce `config/roles.js`
   permissions, while controller-level hierarchy checks prevent actors managing
@@ -61,7 +62,7 @@ Redis test double. The client still has a stub `dummyTest.js`.
 
 1. Reliability: quota reservation, transactional accounting, abandoned-upload
    cleanup and durable S3 retries implemented. Next: scale large-account scans,
-   review tombstone retention costs, and add a browser completion-retry flow.
+   review tombstone retention costs, and persist browser recovery across navigation.
 2. Hardening: webhook deduplication, current-state synchronization and atomic
    subscription/quota updates implemented. Remaining: validation coverage,
    concurrent checkout creation and remote-checkout recovery, billing monitoring.
