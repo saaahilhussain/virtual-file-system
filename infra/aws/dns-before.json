@@ -1,0 +1,9 @@
+{
+  "zoneId": "2ba6d5343063e3fc4436720446eeb18c",
+  "records": [
+    {"id":"64834d0ad6a5a200e72cd92eacbf088c","name":"api.fileshelter.app","type":"A","content":"13.232.214.230","proxied":true,"ttl":1},
+    {"id":"9c87d7389f2d83ce29a79812ea5902bf","name":"fileshelter.app","type":"CNAME","content":"d19d8z4ac3tipw.cloudfront.net","proxied":true,"ttl":1},
+    {"id":"2319db5ec53e7edee0df7aa3efaa7681","name":"www.fileshelter.app","type":"CNAME","content":"d19d8z4ac3tipw.cloudfront.net","proxied":true,"ttl":1}
+  ],
+  "note":"Captured before the new-account DNS cutover. Old origins belong to the closed AWS account and may remain unavailable."
+}

@@ -1,0 +1,28 @@
+{
+  "frontend": {
+    "status": 200,
+    "contentType": "text/html; charset=utf-8"
+  },
+  "frontendRoute": {
+    "status": 200,
+    "contentType": "text/html; charset=utf-8"
+  },
+  "unsignedFile": {
+    "status": 403,
+    "contentType": "text/xml"
+  },
+  "anonymousS3": {
+    "status": 403,
+    "contentType": "application/xml"
+  },
+  "inline": {
+    "status": 200,
+    "disposition": "inline;filename=\"recruiter-preview.txt\"",
+    "bodyMatches": true
+  },
+  "download": {
+    "status": 200,
+    "disposition": "attachment;filename=\"recruiter-download.txt\"",
+    "bodyMatches": true
+  }
+}

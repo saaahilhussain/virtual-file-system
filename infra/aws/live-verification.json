@@ -1,0 +1,19 @@
+{
+  "commandId": "f0661ad5-dea8-4f61-8cf5-b4dea5586fd6",
+  "status": "Success",
+  "checks": {
+    "login": true,
+    "secureSessionCookie": true,
+    "cors": true,
+    "folder": true,
+    "upload": true,
+    "idempotentCompletion": true,
+    "quotaAccounting": true,
+    "preview": true,
+    "download": true,
+    "shareAndRevoke": true,
+    "trashRestoreAndDelete": true,
+    "logoutRevokesSession": true,
+    "disposableAccountRemoved": true
+  }
+}

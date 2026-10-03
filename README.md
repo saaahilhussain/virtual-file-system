@@ -97,7 +97,7 @@ uses the client `VITE_*` values. Client values are public build-time settings.
 | `MONGODB_URI` | MongoDB replica-set connection string |
 | `REDIS_URI`, `SESSION_SECRET` | Redis connection and signed-cookie secret |
 | `AWS_REGION`, `S3_BUCKET` | Region and file bucket |
-| `S3_PROFILE_ACCESS_ID`, `S3_PROFILE_ACCESS_SECRET` | Credentials read by the current S3 client |
+| `S3_PROFILE_ACCESS_ID`, `S3_PROFILE_ACCESS_SECRET` | Optional local credentials; set both or neither. EC2 uses its IAM instance role when unset. |
 | `CLOUDFRONT_DOMAIN`, `CLOUDFRONT_PUBLIC_ID`, `CLOUDFRONT_PRIVATE_KEY` | HTTPS distribution URL, key-pair ID and signing private key |
 | `RESEND_API_KEY` | OTP mail; verify the sender domain used by `otpService.js` |
 | `GOOGLE_CLIENT_ID` | Server verification of Google ID tokens |
