@@ -6,9 +6,17 @@ on:
       - main
     paths:
       - "server/**"
+      - "infra/aws/**"
       - ".github/workflows/backend.yml"
 
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: file-shelter-backend
+  cancel-in-progress: false
 
 jobs:
   test-backend:
@@ -37,68 +45,58 @@ jobs:
   deploy-backend:
     needs: test-backend
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
 
     env:
-      SSH_HOST: ${{ secrets.SSH_HOST }}
-      SSH_USER: ${{ secrets.SSH_USER }}
-      REMOTE_REPO_DIR: ${{ secrets.REMOTE_REPO_DIR }}
-      BACKEND_DIR: ${{ secrets.BACKEND_DIR }}
-      PM2_APP_NAME: ${{ secrets.PM2_APP_NAME }}
-      # Use the existing frontend plan secrets as the single source of truth.
-      # They are exported under the server's RZP_* names over SSH below.
-      RZP_PLAN_PRO_MONTHLY: ${{ secrets.VITE_RZP_PLAN_PRO_MONTHLY }}
-      RZP_PLAN_PRO_YEARLY: ${{ secrets.VITE_RZP_PLAN_PRO_YEARLY }}
-      RZP_PLAN_PREMIUM_MONTHLY: ${{ secrets.VITE_RZP_PLAN_PREMIUM_MONTHLY }}
-      RZP_PLAN_PREMIUM_YEARLY: ${{ secrets.VITE_RZP_PLAN_PREMIUM_YEARLY }}
+      RELEASE_ID: ${{ github.sha }}
 
     steps:
-      - name: Validate Razorpay Plan Configuration
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::821656895501:role/FileShelterDemoBackendDeployRole
+          allowed-account-ids: "821656895501"
+          aws-region: ap-south-1
+
+      - name: Package Tested Backend
         run: |
-          test -n "$RZP_PLAN_PRO_MONTHLY" || { echo "::error::Missing VITE_RZP_PLAN_PRO_MONTHLY secret"; exit 1; }
-          test -n "$RZP_PLAN_PRO_YEARLY" || { echo "::error::Missing VITE_RZP_PLAN_PRO_YEARLY secret"; exit 1; }
-          test -n "$RZP_PLAN_PREMIUM_MONTHLY" || { echo "::error::Missing VITE_RZP_PLAN_PREMIUM_MONTHLY secret"; exit 1; }
-          test -n "$RZP_PLAN_PREMIUM_YEARLY" || { echo "::error::Missing VITE_RZP_PLAN_PREMIUM_YEARLY secret"; exit 1; }
+          tar --exclude='server/.env' --exclude='server/node_modules' --exclude='server/storage' --exclude='server/coverage' \
+            -czf "$RUNNER_TEMP/backend.tar.gz" server infra/aws
+          aws s3 cp "$RUNNER_TEMP/backend.tar.gz" \
+            "s3://file-shelter-artifacts-821656895501-mumbai/releases/$RELEASE_ID/backend.tar.gz"
 
-      - name: Setup SSH
+      - name: Deploy Tested Git Commit Through Systems Manager
+        id: deployment
         run: |
-          mkdir -p ~/.ssh
+          python3 - <<'PY'
+          import base64, json, os, pathlib, re, shlex
+          release = os.environ['RELEASE_ID']
+          assert re.fullmatch(r'[0-9a-f]{40}', release)
+          script = pathlib.Path('infra/aws/deploy-backend.sh').read_bytes()
+          encoded = base64.b64encode(script).decode()
+          command = f"printf '%s' {shlex.quote(encoded)} | base64 -d > /tmp/file-shelter-deploy.sh\nbash /tmp/file-shelter-deploy.sh {shlex.quote(release)}"
+          target = pathlib.Path(os.environ['RUNNER_TEMP']) / 'ssm-parameters.json'
+          target.write_text(json.dumps({'commands': [command], 'executionTimeout': ['900']}))
+          PY
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids i-0fd3ead0d7e6eaecf \
+            --document-name AWS-RunShellScript \
+            --comment "File Shelter release $RELEASE_ID" \
+            --parameters "file://$RUNNER_TEMP/ssm-parameters.json" \
+            --query 'Command.CommandId' --output text)
+          echo "command_id=$COMMAND_ID" >> "$GITHUB_OUTPUT"
+          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id i-0fd3ead0d7e6eaecf
 
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-
-          chmod 600 ~/.ssh/id_rsa
-
-          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
-
-      - name: Deploy Backend
+      - name: Report Deployment Result
+        if: always() && steps.deployment.outputs.command_id != ''
+        env:
+          COMMAND_ID: ${{ steps.deployment.outputs.command_id }}
         run: |
-          ssh "${SSH_USER}@${SSH_HOST}" << EOF
-            set -e
-
-            echo "Moving to repository..."
-            cd "$REMOTE_REPO_DIR"
-
-            echo "Fetching latest code..."
-            git fetch origin
-
-            echo "Resetting repository to origin/main..."
-            git reset --hard origin/main
-
-            echo "Removing untracked files..."
-            git clean -fd
-
-            echo "Moving to backend..."
-            cd "$BACKEND_DIR"
-
-            export RZP_PLAN_PRO_MONTHLY="$RZP_PLAN_PRO_MONTHLY"
-            export RZP_PLAN_PRO_YEARLY="$RZP_PLAN_PRO_YEARLY"
-            export RZP_PLAN_PREMIUM_MONTHLY="$RZP_PLAN_PREMIUM_MONTHLY"
-            export RZP_PLAN_PREMIUM_YEARLY="$RZP_PLAN_PREMIUM_YEARLY"
-
-            echo "Installing dependencies..."
-            npm ci --omit=dev --no-audit --no-fund
-
-            echo "Restarting PM2..."
-            pm2 restart "$PM2_APP_NAME" --update-env
-
-            echo "Backend deployed successfully."
-          EOF
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id i-0fd3ead0d7e6eaecf \
+            --query '{Status:Status,Output:StandardOutputContent,Error:StandardErrorContent}'

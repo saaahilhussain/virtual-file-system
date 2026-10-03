@@ -1,0 +1,132 @@
+{
+  "cert": {
+    "status": "ISSUED",
+    "dns": [
+      {
+        "DomainName": "fileshelter.app",
+        "ValidationDomain": "fileshelter.app",
+        "ValidationStatus": "SUCCESS",
+        "ResourceRecord": {
+          "Name": "_5182321163b3bb45936f62132dc9c940.fileshelter.app.",
+          "Type": "CNAME",
+          "Value": "_5b41855f5ecec25caf992ab9bd7eae24.wzccmgtwzk.acm-validations.aws."
+        },
+        "ValidationMethod": "DNS"
+      },
+      {
+        "DomainName": "www.fileshelter.app",
+        "ValidationDomain": "www.fileshelter.app",
+        "ValidationStatus": "SUCCESS",
+        "ResourceRecord": {
+          "Name": "_f2c348634fc1502124c1aeb7c6c52f82.www.fileshelter.app.",
+          "Type": "CNAME",
+          "Value": "_054b3143e2fbe0d7b1da6a25d3a4e4c1.wzccmgtwzk.acm-validations.aws."
+        },
+        "ValidationMethod": "DNS"
+      },
+      {
+        "DomainName": "preview.fileshelter.app",
+        "ValidationDomain": "preview.fileshelter.app",
+        "ValidationStatus": "SUCCESS",
+        "ResourceRecord": {
+          "Name": "_22b5f73335b35b21e9b822258c7a4c33.preview.fileshelter.app.",
+          "Type": "CNAME",
+          "Value": "_d7616269ed0a83843213fefe9807a0e3.wzccmgtwzk.acm-validations.aws."
+        },
+        "ValidationMethod": "DNS"
+      }
+    ],
+    "arn": "arn:aws:acm:us-east-1:821656895501:certificate/b059fcd0-fd0f-46fb-b324-45069fc0c7fa"
+  },
+  "ec2": [
+    {
+      "id": "i-0fd3ead0d7e6eaecf",
+      "state": "running",
+      "ip": "13.235.106.210",
+      "metadata": {
+        "State": "applied",
+        "HttpTokens": "required",
+        "HttpPutResponseHopLimit": 1,
+        "HttpEndpoint": "enabled",
+        "HttpProtocolIpv6": "disabled",
+        "InstanceMetadataTags": "disabled"
+      }
+    }
+  ],
+  "ssm": [
+    {
+      "id": "i-0fd3ead0d7e6eaecf",
+      "ping": "Online",
+      "platform": "Ubuntu",
+      "agent": "3.3.4793.0"
+    }
+  ],
+  "frontend": {
+    "status": "Deployed",
+    "domain": "d1poygmlu2bb31.cloudfront.net",
+    "id": "E1GKIK1Q7BCJ3R",
+    "aliases": [
+      "fileshelter.app",
+      "www.fileshelter.app",
+      "preview.fileshelter.app"
+    ],
+    "certificateArn": "arn:aws:acm:us-east-1:821656895501:certificate/b059fcd0-fd0f-46fb-b324-45069fc0c7fa"
+  },
+  "files": {
+    "status": "Deployed",
+    "domain": "d2ne7s9kpc4c0k.cloudfront.net",
+    "id": "E3JEPZW12UFYVM"
+  },
+  "account": "821656895501",
+  "region": "ap-south-1",
+  "profile": "file-shelter-admin",
+  "state": "Live on original domains; API HTTPS and PM2 reboot recovery verified",
+  "sourceRevision": "dc6b7ee6dc88d15b2f596c2906160dc92c6fe7b2",
+  "includesWorkingTreeChanges": true,
+  "api": {
+    "instanceId": "i-0fd3ead0d7e6eaecf",
+    "elasticIp": "13.235.106.210",
+    "httpHealth": 200,
+    "pm2": "online",
+    "atlas": "original storageApp replica set connected",
+    "redis": "JSON, Search and session index passed",
+    "runtimePresignedPut": 200,
+    "runtimeDelete": "passed",
+    "rebootRecovery": "Original installation reboot verified; ubuntu startup service verified from saved PM2 configuration without a full reboot",
+    "httpsHealth": 200,
+    "runtimeConfig": {
+      "ssmParameter": "/file-shelter/demo/server-env",
+      "mode": "0600",
+      "owner": "ubuntu",
+      "storage": "EBS filesystem",
+      "path": "/home/ubuntu/file-shelter/server/.env",
+      "refreshService": "file-shelter-secrets.service"
+    },
+    "certificateRenewal": "certbot.timer enabled",
+    "appDirectory": "/home/ubuntu/file-shelter",
+    "git": {
+      "remote": "https://github.com/saaahilhussain/virtual-file-system.git",
+      "branch": "main",
+      "pull": "fast-forward only",
+      "pullVerification": "passed under ubuntu"
+    },
+    "pm2User": "ubuntu",
+    "pm2StartupService": "pm2-ubuntu"
+  },
+  "dns": {
+    "provider": "Cloudflare",
+    "zoneId": "2ba6d5343063e3fc4436720446eeb18c",
+    "frontendTarget": "d1poygmlu2bb31.cloudfront.net",
+    "apiTarget": "13.235.106.210",
+    "proxyMode": "DNS only",
+    "domainTransfer": "apex and www accepted by AWS UpdateDomainAssociation"
+  },
+  "verification": {
+    "liveSmoke": "live-verification.json",
+    "rebootCommandId": "6829845c-b356-413e-b465-eaea438a3ef5",
+    "backendTests": 60,
+    "frontendTests": 19,
+    "productionBuild": "passed",
+    "githubWorkflows": "local; not run"
+  }
+}
