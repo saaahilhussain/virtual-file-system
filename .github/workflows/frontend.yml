@@ -63,8 +63,10 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::821656895501:role/FileShelterDemoFrontendDeployRole
-          allowed-account-ids: "821656895501"
           aws-region: ap-south-1
+
+      - name: Verify AWS Account
+        run: test "$(aws sts get-caller-identity --query Account --output text)" = "821656895501"
 
       - name: Upload Build to S3
         run: |
