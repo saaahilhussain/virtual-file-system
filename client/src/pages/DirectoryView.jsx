@@ -15,11 +15,10 @@ import {
 import {
   deleteFile,
   renameFile,
-  uploadComplete,
-  uploadInitiate,
-  uploadCancel,
 } from "../apis/fileApi";
 import { fetchUser } from "../apis/userApi";
+import useFileUpload from "../hooks/useFileUpload";
+import UploadStatus from "../components/UploadStatus";
 
 function DirectoryListSkeleton() {
   return (
@@ -42,8 +41,6 @@ function DirectoryView() {
   const BASE_URL = import.meta.env.VITE_BACKEND_BASE_URI;
   const { dirId } = useParams();
   const navigate = useNavigate();
-
-  const [directoryName, setDirectoryName] = useState("My Drive");
 
   // Breadcrumb trail
   const [breadcrumbTrail, setBreadcrumbTrail] = useState([
@@ -78,10 +75,14 @@ function DirectoryView() {
 
   // Uploading states
   const fileInputRef = useRef(null);
-  const [uploadXhrMap, setUploadXhrMap] = useState({}); // track XHR per item
-  const [uploadFileIdMap, setUploadFileIdMap] = useState({}); // track tempId -> fileId mapping
-  const [progressMap, setProgressMap] = useState({}); // track progress per item
-  const [isUploading, setIsUploading] = useState(false); // indicates if an upload is in progress
+  const { upload, start: startUpload, retryCompletion, cancel: handleCancelUpload, dismiss } = useFileUpload({
+    onSettled: () => {
+      getDirectoryItemsHandler();
+      getUserStorageInfo();
+    },
+    onUnauthorized: () => navigate("/login"),
+  });
+  const isUploading = Boolean(upload);
 
   // Context menu
   const [activeContextMenu, setActiveContextMenu] = useState(null);
@@ -105,9 +106,6 @@ function DirectoryView() {
       const data = await getDirectoryItems(dirId, { cursor, signal });
       if (signal?.aborted) return;
 
-      // Set directory name
-      setDirectoryName(dirId ? data.name : "My Drive");
-
       setBreadcrumbTrail(
         Array.isArray(data.breadcrumbTrail) && data.breadcrumbTrail.length > 0
           ? data.breadcrumbTrail
@@ -126,9 +124,10 @@ function DirectoryView() {
         setErrorMessage(error.message);
       }
     } finally {
-      if (signal?.aborted) return;
-      setDirectoryLoading(false);
-      setLoadingMore(false);
+      if (!signal?.aborted) {
+        setDirectoryLoading(false);
+        setLoadingMore(false);
+      }
     }
   }
 
@@ -214,137 +213,16 @@ function DirectoryView() {
   /**
    * Select a file and start upload
    */
-  async function handleFileSelect(e) {
+  function handleFileSelect(e) {
     const file = e.target.files?.[0];
-
+    e.target.value = "";
     if (!file) return;
-
     if (isUploading) {
-      setErrorMessage("An upload is already in progress, please wait");
-      setTimeout(() => setErrorMessage(""), 3000);
-      e.target.value = "";
+      setErrorMessage("Finish or cancel the pending upload before selecting another file.");
       return;
     }
-
-    try {
-      // Build a single temp item
-      const tempItem = {
-        file,
-        name: file.name,
-        size: file.size,
-        id: `temp-${Date.now()}-${Math.random()}`,
-        isUploading: false,
-        isDirectory: false,
-      };
-
-      const data = await uploadInitiate({
-        name: file.name,
-        size: file.size,
-        contentType: file.type,
-        parentDirId: dirId,
-      });
-
-      const { uploadUrl, fileId } = data;
-
-      // Add it to the top of the existing list
-      setItems((prev) => [tempItem, ...prev]);
-
-      // Clear file input so the same file can be chosen again if needed
-      e.target.value = "";
-
-      // Start uploading
-      setIsUploading(true);
-      startFileUpload(tempItem, uploadUrl, fileId);
-    } catch (error) {
-      setErrorMessage(error.message);
-      setTimeout(() => setErrorMessage(""), 3000);
-      e.target.value = "";
-    }
-  }
-
-  /**
-   * Upload a single file
-   */
-  function startFileUpload(item, uploadUrl, fileId) {
-    // Mark it as isUploading: true
-    setItems((prev) =>
-      prev.map((file) =>
-        file.id === item.id ? { ...file, isUploading: true } : file,
-      ),
-    );
-
-    // Start upload
-    const xhr = new XMLHttpRequest();
-    xhr.open("PUT", uploadUrl);
-
-    xhr.upload.addEventListener("progress", (evt) => {
-      if (evt.lengthComputable) {
-        const progress = (evt.loaded / evt.total) * 100;
-        setProgressMap((prev) => ({ ...prev, [item.id]: progress }));
-      }
-    });
-
-    xhr.addEventListener("load", async () => {
-      // Upload complete
-      setIsUploading(false);
-      if (xhr.status === 200) {
-        const data = await uploadComplete(fileId);
-        console.log(data);
-      }
-      setTimeout(() => {
-        getDirectoryItemsHandler();
-        getUserStorageInfo();
-      }, 1000);
-    });
-
-    // Store XHR for potential cancellation
-    setUploadXhrMap((prev) => ({ ...prev, [item.id]: xhr }));
-    // Store fileId mapping for cancellation
-    setUploadFileIdMap((prev) => ({ ...prev, [item.id]: fileId }));
-    xhr.send(item.file);
-  }
-
-  /**
-   * Cancel an in-progress upload
-   */
-  function handleCancelUpload(tempId) {
-    const xhr = uploadXhrMap[tempId];
-    if (xhr) {
-      xhr.abort();
-    }
-
-    // Get the fileId and call cancel API
-    const fileId = uploadFileIdMap[tempId];
-    if (fileId) {
-      uploadCancel(fileId).catch((error) => {
-        console.error("Error cancelling upload:", error);
-      });
-    }
-
-    setItems((prev) => prev.filter((item) => item.id !== tempId));
-
-    // Remove from progressMap
-    setProgressMap((prev) => {
-      const { [tempId]: _, ...rest } = prev;
-      return rest;
-    });
-
-    // Remove from upload map
-    setUploadXhrMap((prev) => {
-      const copy = { ...prev };
-      delete copy[tempId];
-      return copy;
-    });
-
-    // Remove from fileId map
-    setUploadFileIdMap((prev) => {
-      const copy = { ...prev };
-      delete copy[tempId];
-      return copy;
-    });
-
-    // Reset uploading state
-    setIsUploading(false);
+    setErrorMessage("");
+    startUpload(file, dirId);
   }
 
   /**
@@ -517,6 +395,13 @@ function DirectoryView() {
             <div className="error-banner">{errorMessage}</div>
           )}
 
+          <UploadStatus
+            upload={upload}
+            onRetry={retryCompletion}
+            onCancel={handleCancelUpload}
+            onDismiss={dismiss}
+          />
+
           {/* Section Header */}
           <div className="section-header">
             <Breadcrumb trail={breadcrumbTrail} />
@@ -606,7 +491,7 @@ function DirectoryView() {
               handleContextMenu={handleContextMenu}
               getFileIcon={getFileIcon}
               isUploading={isUploading}
-              progressMap={progressMap}
+              progressMap={{}}
               handleCancelUpload={handleCancelUpload}
               handleDeleteFile={handleDeleteFile}
               handleDeleteDirectory={handleDeleteDirectory}

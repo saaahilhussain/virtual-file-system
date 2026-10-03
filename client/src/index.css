@@ -3087,3 +3087,13 @@ body.dark-mode .privacy-page {
     border-radius: 24px;
   }
 }
+/* Upload attempts remain visible while completion or cancellation is pending. */
+.upload-status {
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid var(--border-color, #d9d9d9);
+  border-radius: 8px;
+}
+.upload-status p { margin: 8px 0; }
+.upload-status progress { width: 100%; accent-color: #4a6348; }
+.upload-status-actions { display: flex; flex-wrap: wrap; gap: 8px; }

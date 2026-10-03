@@ -30,9 +30,10 @@ One module per resource: `authApi`, `userApi`, `fileApi`, `directoryApi`, `trash
 
 - Named default exports per file; pages in `pages/`, reusable in `components/`.
 - Styling = Tailwind utility classes inline; dark mode via `.dark-mode` CSS class variants.
-- Lint: `npm run lint` (eslint 9 flat config). No tests (`test` script runs stub `dummyTest.js`).
+- Lint: `npm run lint` (eslint 9 flat config). Tests: `npm test` uses Vitest + Testing Library for Drive flows with fetch/XHR doubles.
+- Upload recovery: `hooks/useFileUpload.js` and `UploadStatus` retain the file ID for completion retry while the Drive page is mounted. `npm run demo:upload` records the browser flow.
 
 ## Gotchas
 
-- README env examples are wrong for the server; client uses `VITE_*` vars defined in `client/.env` (loaded by vite dev script with `node --env-file`).
+- README and `.env.example` files describe current configuration; client uses `VITE_*` vars defined in `client/.env` (loaded by vite dev script with `node --env-file`).
 - `RoleGuard` duplicates server role logic (role strings lowercase) — keep in sync when changing roles.

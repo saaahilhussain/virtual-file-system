@@ -5,6 +5,8 @@ dist/
 build/
 *.log
 coverage/
+client/demo-results/
+client/playwright-report/
 .nyc_output/
 
 .vscode

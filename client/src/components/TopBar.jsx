@@ -232,6 +232,7 @@ function TopBar({
           ref={fileInputRef}
           id="file-upload"
           type="file"
+          aria-label="Choose file to upload"
           style={{ display: "none" }}
           // multiple
           onChange={handleFileSelect}
