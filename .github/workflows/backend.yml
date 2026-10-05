@@ -45,6 +45,7 @@ jobs:
   deploy-backend:
     needs: test-backend
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     if: github.ref == 'refs/heads/main'
     permissions:
       contents: read
@@ -56,6 +57,14 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Reject Outdated Deployment
+        run: |
+          CURRENT_MAIN=$(git ls-remote --exit-code origin refs/heads/main | cut -f1)
+          if [[ "$RELEASE_ID" != "$CURRENT_MAIN" ]]; then
+            echo "::error::This run targets an outdated commit. Use Actions > ci/cd backend > Run workflow on main to deploy the current workflow and code."
+            exit 1
+          fi
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4

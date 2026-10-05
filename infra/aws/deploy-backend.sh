@@ -3,6 +3,8 @@
 set -euo pipefail
 RELEASE_ID="$1"
 [[ "$RELEASE_ID" =~ ^[0-9a-f]{40}$ ]] || exit 2
+exec 9>/var/lock/file-shelter-deploy.lock
+flock -n 9 || { echo 'Another backend deployment is running.' >&2; exit 1; }
 APP_DIR=/home/ubuntu/file-shelter
 RELEASE_DIR="/home/ubuntu/releases/$RELEASE_ID-$(date -u +%Y%m%dT%H%M%S)-$$"
 PREVIOUS=$(readlink -f "$APP_DIR" 2>/dev/null || true)
@@ -26,6 +28,10 @@ finish() {
 trap finish EXIT
 install -d -o ubuntu -g ubuntu -m 0750 /home/ubuntu/releases
 sudo -Hu ubuntu env GIT_TERMINAL_PROMPT=0 git clone --filter=blob:none --no-checkout --single-branch --branch main https://github.com/saaahilhussain/virtual-file-system.git "$RELEASE_DIR"
+if [[ "$(sudo -Hu ubuntu git -C "$RELEASE_DIR" rev-parse origin/main)" != "$RELEASE_ID" ]]; then
+  echo 'Refusing an outdated release. Start the backend workflow on current main.' >&2
+  exit 1
+fi
 sudo -Hu ubuntu git -C "$RELEASE_DIR" cat-file -e "$RELEASE_ID^{commit}"
 sudo -Hu ubuntu git -C "$RELEASE_DIR" merge-base --is-ancestor "$RELEASE_ID" origin/main
 sudo -Hu ubuntu git -C "$RELEASE_DIR" checkout -B main "$RELEASE_ID"

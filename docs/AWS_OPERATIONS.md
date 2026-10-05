@@ -22,8 +22,10 @@ EC2 uses temporary role credentials for S3.
 After updating an encrypted parameter, run these through SSM:
 
 ```bash
+sudo systemctl stop pm2-ubuntu
 sudo systemctl restart file-shelter-secrets
-sudo -Hu ubuntu pm2 reload /home/ubuntu/file-shelter/infra/aws/ecosystem.config.cjs --update-env
+sudo systemctl start pm2-ubuntu
+sudo -Hu ubuntu pm2 startOrReload /home/ubuntu/file-shelter/infra/aws/ecosystem.config.cjs --update-env
 sudo -Hu ubuntu pm2 save
 curl --fail https://api.fileshelter.app/
 ```
@@ -48,6 +50,15 @@ its private `.env`. A successful preflight switches the app symlink and recreate
 the PM2 process. Health-check failure switches back to the previous release.
 The release installer preserves Certbot's Nginx HTTPS configuration.
 
+To retry deployment after a workflow fix, open **Actions > ci/cd backend >
+Run workflow**, select **main**, and start a fresh run. **Re-run jobs** uses the
+original run's commit and workflow, so an old failed run still uses its old
+timeout and PM2 startup sequence. The current workflow waits up to 15 minutes
+for SSM completion, with a 20-minute deployment job limit. It rejects outdated
+commits before AWS access; the release script also checks current `main` and
+allows one deployment at a time. These checks apply to commits containing them;
+historical workflows cannot be changed by updating `main`.
+
 Git on EC2 tracks `origin/main` and permits only fast-forward pulls. No GitHub
 private key or token is needed for this public repository. To fetch changes manually:
 
@@ -55,10 +66,9 @@ private key or token is needed for this public repository. To fetch changes manu
 sudo -Hu ubuntu git -C /home/ubuntu/file-shelter pull --ff-only origin main
 ```
 
-The initial live snapshot contains uncommitted changes because the local working
-tree has not yet been pushed. Preserve those changes; let the updated workflow
-deploy the tested commit after they are published. A manual pull does not install
-dependencies or restart PM2. Prefer the workflow for application updates.
+The deployed release is a clean checkout of the tested commit, with an ignored
+private `.env`. A manual pull does not install dependencies or restart PM2.
+Prefer the workflow for application updates.
 
 For rollback, preflight a retained release with its own `server/.env`, switch
 `/home/ubuntu/file-shelter` to it, run `systemctl daemon-reload`, recreate
